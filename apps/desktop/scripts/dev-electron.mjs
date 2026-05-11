@@ -37,6 +37,7 @@ await waitForResources({
 });
 
 const childEnv = { ...process.env };
+childEnv.T3CODE_DISABLE_AUTO_UPDATE ??= "1";
 delete childEnv.ELECTRON_RUN_AS_NODE;
 
 let shuttingDown = false;

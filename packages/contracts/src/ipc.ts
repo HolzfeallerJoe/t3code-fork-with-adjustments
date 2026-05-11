@@ -198,6 +198,61 @@ export interface DesktopUpdateActionResult {
   state: DesktopUpdateState;
 }
 
+export type ForkUpdateStatus =
+  | "disabled"
+  | "idle"
+  | "checking"
+  | "up-to-date"
+  | "update-available"
+  | "sync-conflict"
+  | "error";
+
+export const ForkUpdateStatusSchema = Schema.Literals([
+  "disabled",
+  "idle",
+  "checking",
+  "up-to-date",
+  "update-available",
+  "sync-conflict",
+  "error",
+]);
+
+export interface ForkUpdateState {
+  enabled: boolean;
+  status: ForkUpdateStatus;
+  forkRepo: string | null;
+  currentCommit: string | null;
+  latestCommit: string | null;
+  latestCommitMessage: string | null;
+  latestCommitDate: string | null;
+  checkedAt: string | null;
+  message: string | null;
+  syncConflictIssueUrl: string | null;
+}
+
+export const ForkUpdateStateSchema = Schema.Struct({
+  enabled: Schema.Boolean,
+  status: ForkUpdateStatusSchema,
+  forkRepo: Schema.NullOr(Schema.String),
+  currentCommit: Schema.NullOr(Schema.String),
+  latestCommit: Schema.NullOr(Schema.String),
+  latestCommitMessage: Schema.NullOr(Schema.String),
+  latestCommitDate: Schema.NullOr(Schema.String),
+  checkedAt: Schema.NullOr(Schema.String),
+  message: Schema.NullOr(Schema.String),
+  syncConflictIssueUrl: Schema.NullOr(Schema.String),
+});
+
+export interface ForkUpdateCheckResult {
+  checked: boolean;
+  state: ForkUpdateState;
+}
+
+export const ForkUpdateCheckResultSchema = Schema.Struct({
+  checked: Schema.Boolean,
+  state: ForkUpdateStateSchema,
+});
+
 export const DesktopUpdateActionResultSchema = Schema.Struct({
   accepted: Schema.Boolean,
   completed: Schema.Boolean,
@@ -419,6 +474,9 @@ export interface DesktopBridge {
   downloadUpdate: () => Promise<DesktopUpdateActionResult>;
   installUpdate: () => Promise<DesktopUpdateActionResult>;
   onUpdateState: (listener: (state: DesktopUpdateState) => void) => () => void;
+  getForkUpdateState: () => Promise<ForkUpdateState>;
+  checkForForkUpdate: () => Promise<ForkUpdateCheckResult>;
+  onForkUpdateState: (listener: (state: ForkUpdateState) => void) => () => void;
 }
 
 /**

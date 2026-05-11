@@ -447,6 +447,34 @@ const createDesktopBridgeStub = (overrides?: {
       .fn()
       .mockResolvedValue({ accepted: false, completed: false, state: idleUpdateState }),
     onUpdateState: () => () => {},
+    getForkUpdateState: vi.fn().mockResolvedValue({
+      enabled: false,
+      status: "disabled",
+      forkRepo: null,
+      currentCommit: null,
+      latestCommit: null,
+      latestCommitMessage: null,
+      latestCommitDate: null,
+      checkedAt: null,
+      message: null,
+      syncConflictIssueUrl: null,
+    }),
+    checkForForkUpdate: vi.fn().mockResolvedValue({
+      checked: false,
+      state: {
+        enabled: false,
+        status: "disabled",
+        forkRepo: null,
+        currentCommit: null,
+        latestCommit: null,
+        latestCommitMessage: null,
+        latestCommitDate: null,
+        checkedAt: null,
+        message: null,
+        syncConflictIssueUrl: null,
+      },
+    }),
+    onForkUpdateState: () => () => {},
   };
 };
 

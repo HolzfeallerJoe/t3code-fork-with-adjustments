@@ -43,6 +43,7 @@ import * as DesktopSshPasswordPrompts from "./ssh/DesktopSshPasswordPrompts.ts";
 import * as DesktopSshRemoteApi from "./ssh/DesktopSshRemoteApi.ts";
 import * as DesktopState from "./app/DesktopState.ts";
 import * as DesktopUpdates from "./updates/DesktopUpdates.ts";
+import * as ForkUpdateChecker from "./updates/ForkUpdateChecker.ts";
 import * as DesktopWindow from "./window/DesktopWindow.ts";
 
 const desktopEnvironmentLayer = Layer.unwrap(
@@ -138,7 +139,11 @@ const desktopApplicationLayer = Layer.mergeAll(
   DesktopApplicationMenu.layer,
   DesktopShellEnvironment.layer,
   desktopSshLayer,
-).pipe(Layer.provideMerge(DesktopUpdates.layer), Layer.provideMerge(desktopBackendLayer));
+).pipe(
+  Layer.provideMerge(DesktopUpdates.layer),
+  Layer.provideMerge(ForkUpdateChecker.layer),
+  Layer.provideMerge(desktopBackendLayer),
+);
 
 const desktopRuntimeLayer = ElectronProtocol.layerSchemePrivileges.pipe(
   Layer.flatMap(() =>

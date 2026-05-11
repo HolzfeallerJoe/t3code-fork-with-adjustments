@@ -1,5 +1,5 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentId, OrchestrationThreadActivity, ThreadId } from "@t3tools/contracts";
 import {
   ChevronDownIcon,
   CloudIcon,
@@ -12,7 +12,9 @@ import { memo, useMemo } from "react";
 
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import { useStore } from "../store";
+import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
+import { deriveLatestAccountRateLimitsSnapshotFromState } from "../lib/usageLimits";
+import { type AppState, useStore } from "../store";
 import { createProjectSelectorByRef, createThreadSelectorByRef } from "../storeSelectors";
 import {
   type EnvMode,
@@ -25,6 +27,7 @@ import {
 import { BranchToolbarBranchSelector } from "./BranchToolbarBranchSelector";
 import { BranchToolbarEnvironmentSelector } from "./BranchToolbarEnvironmentSelector";
 import { BranchToolbarEnvModeSelector } from "./BranchToolbarEnvModeSelector";
+import { UsageLimitStrip } from "./UsageLimitStrip";
 import { Button } from "./ui/button";
 import {
   Menu,
@@ -37,6 +40,8 @@ import {
   MenuTrigger,
 } from "./ui/menu";
 import { Separator } from "./ui/separator";
+
+const EMPTY_THREAD_ACTIVITIES: readonly OrchestrationThreadActivity[] = [];
 
 interface BranchToolbarProps {
   environmentId: EnvironmentId;
@@ -237,56 +242,92 @@ export const BranchToolbar = memo(function BranchToolbar({
     availableEnvironments && availableEnvironments.length > 1 && onEnvironmentChange,
   );
   const isMobile = useIsMobile();
+  const threadActivities = serverThread?.activities;
+  const activeContextWindow = useMemo(
+    () => deriveLatestContextWindowSnapshot(threadActivities ?? EMPTY_THREAD_ACTIVITIES),
+    [threadActivities],
+  );
+  const activeEnvironmentId = useStore((state) => state.activeEnvironmentId);
+  const environmentStateById = useStore((state) => state.environmentStateById);
+  const activeRateLimits = useMemo(() => {
+    const providerInstanceId =
+      serverThread?.session?.providerInstanceId ?? serverThread?.modelSelection.instanceId ?? null;
+    const provider = serverThread?.session?.provider ?? null;
+    return deriveLatestAccountRateLimitsSnapshotFromState(
+      {
+        activeEnvironmentId,
+        environmentStateById,
+      } satisfies AppState,
+      {
+        provider,
+        providerInstanceId,
+      },
+    );
+  }, [
+    activeEnvironmentId,
+    environmentStateById,
+    serverThread?.modelSelection.instanceId,
+    serverThread?.session?.provider,
+    serverThread?.session?.providerInstanceId,
+  ]);
 
   if (!hasActiveThread || !activeProject) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-208 items-center gap-2 px-2.5 pb-3 pt-1 sm:px-3">
-      {isMobile ? (
-        <MobileRunContextSelector
-          envLocked={envLocked}
-          envModeLocked={envModeLocked}
-          environmentId={environmentId}
-          availableEnvironments={availableEnvironments}
-          showEnvironmentPicker={showEnvironmentPicker}
-          onEnvironmentChange={onEnvironmentChange}
-          effectiveEnvMode={effectiveEnvMode}
-          activeWorktreePath={activeWorktreePath}
-          onEnvModeChange={onEnvModeChange}
-        />
-      ) : (
-        <div className="flex min-w-0 shrink-0 items-center gap-1">
-          {showEnvironmentPicker && availableEnvironments && onEnvironmentChange && (
-            <>
-              <BranchToolbarEnvironmentSelector
-                envLocked={envLocked}
-                environmentId={environmentId}
-                availableEnvironments={availableEnvironments}
-                onEnvironmentChange={onEnvironmentChange}
-              />
-              <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
-            </>
-          )}
-          <BranchToolbarEnvModeSelector
-            envLocked={envModeLocked}
+    <div className="mx-auto flex w-full max-w-208 items-center justify-between gap-2 px-2.5 pb-3 pt-1 sm:px-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {isMobile ? (
+          <MobileRunContextSelector
+            envLocked={envLocked}
+            envModeLocked={envModeLocked}
+            environmentId={environmentId}
+            availableEnvironments={availableEnvironments}
+            showEnvironmentPicker={showEnvironmentPicker}
+            onEnvironmentChange={onEnvironmentChange}
             effectiveEnvMode={effectiveEnvMode}
             activeWorktreePath={activeWorktreePath}
             onEnvModeChange={onEnvModeChange}
           />
-        </div>
-      )}
+        ) : (
+          <div className="flex min-w-0 shrink-0 items-center gap-1">
+            {showEnvironmentPicker && availableEnvironments && onEnvironmentChange && (
+              <>
+                <BranchToolbarEnvironmentSelector
+                  envLocked={envLocked}
+                  environmentId={environmentId}
+                  availableEnvironments={availableEnvironments}
+                  onEnvironmentChange={onEnvironmentChange}
+                />
+                <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
+              </>
+            )}
+            <BranchToolbarEnvModeSelector
+              envLocked={envModeLocked}
+              effectiveEnvMode={effectiveEnvMode}
+              activeWorktreePath={activeWorktreePath}
+              onEnvModeChange={onEnvModeChange}
+            />
+          </div>
+        )}
 
-      <BranchToolbarBranchSelector
-        className="min-w-0 flex-1 justify-end md:ml-auto md:flex-none"
-        environmentId={environmentId}
-        threadId={threadId}
-        {...(draftId ? { draftId } : {})}
-        envLocked={envLocked}
-        {...(effectiveEnvModeOverride ? { effectiveEnvModeOverride } : {})}
-        {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
-        {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
-        {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
-        {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
+        <BranchToolbarBranchSelector
+          className="min-w-0 flex-1 justify-start md:flex-none"
+          environmentId={environmentId}
+          threadId={threadId}
+          {...(draftId ? { draftId } : {})}
+          envLocked={envLocked}
+          {...(effectiveEnvModeOverride ? { effectiveEnvModeOverride } : {})}
+          {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
+          {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
+          {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
+          {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
+        />
+      </div>
+
+      <UsageLimitStrip
+        className="ml-auto hidden shrink-0 sm:flex"
+        contextWindow={activeContextWindow}
+        rateLimits={activeRateLimits}
       />
     </div>
   );

@@ -242,6 +242,34 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
       throw new Error("installUpdate not implemented in test");
     },
     onUpdateState: () => () => undefined,
+    getForkUpdateState: async () => ({
+      enabled: false,
+      status: "disabled" as const,
+      forkRepo: null,
+      currentCommit: null,
+      latestCommit: null,
+      latestCommitMessage: null,
+      latestCommitDate: null,
+      checkedAt: null,
+      message: null,
+      syncConflictIssueUrl: null,
+    }),
+    checkForForkUpdate: async () => ({
+      checked: false,
+      state: {
+        enabled: false,
+        status: "disabled" as const,
+        forkRepo: null,
+        currentCommit: null,
+        latestCommit: null,
+        latestCommitMessage: null,
+        latestCommitDate: null,
+        checkedAt: null,
+        message: null,
+        syncConflictIssueUrl: null,
+      },
+    }),
+    onForkUpdateState: () => () => undefined,
     ...overrides,
   };
 }

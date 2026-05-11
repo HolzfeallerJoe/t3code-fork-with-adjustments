@@ -3,11 +3,14 @@ import {
   DesktopUpdateChannelSchema,
   DesktopUpdateCheckResultSchema,
   DesktopUpdateStateSchema,
+  ForkUpdateCheckResultSchema,
+  ForkUpdateStateSchema,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 import * as DesktopUpdates from "../../updates/DesktopUpdates.ts";
+import * as ForkUpdateChecker from "../../updates/ForkUpdateChecker.ts";
 import * as IpcChannels from "../channels.ts";
 import { makeIpcMethod } from "../DesktopIpc.ts";
 
@@ -58,5 +61,25 @@ export const checkForUpdate = makeIpcMethod({
   handler: Effect.fn("desktop.ipc.updates.check")(function* () {
     const updates = yield* DesktopUpdates.DesktopUpdates;
     return yield* updates.check("web-ui");
+  }),
+});
+
+export const getForkUpdateState = makeIpcMethod({
+  channel: IpcChannels.FORK_UPDATE_GET_STATE_CHANNEL,
+  payload: Schema.Void,
+  result: ForkUpdateStateSchema,
+  handler: Effect.fn("desktop.ipc.forkUpdates.getState")(function* () {
+    const forkChecker = yield* ForkUpdateChecker.ForkUpdateChecker;
+    return yield* forkChecker.getState;
+  }),
+});
+
+export const checkForForkUpdate = makeIpcMethod({
+  channel: IpcChannels.FORK_UPDATE_CHECK_CHANNEL,
+  payload: Schema.Void,
+  result: ForkUpdateCheckResultSchema,
+  handler: Effect.fn("desktop.ipc.forkUpdates.check")(function* () {
+    const forkChecker = yield* ForkUpdateChecker.ForkUpdateChecker;
+    return yield* forkChecker.check("web-ui");
   }),
 });

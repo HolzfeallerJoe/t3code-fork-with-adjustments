@@ -26,8 +26,10 @@ import {
   resolveSshPasswordPrompt,
 } from "./methods/sshEnvironment.ts";
 import {
+  checkForForkUpdate,
   checkForUpdate,
   downloadUpdate,
+  getForkUpdateState,
   getUpdateState,
   installUpdate,
   setUpdateChannel,
@@ -81,4 +83,7 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(downloadUpdate);
   yield* ipc.handle(installUpdate);
   yield* ipc.handle(checkForUpdate);
+
+  yield* ipc.handle(getForkUpdateState);
+  yield* ipc.handle(checkForForkUpdate);
 }).pipe(Effect.withSpan("desktop.ipc.installHandlers"));

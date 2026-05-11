@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "@t3tools/monorepo",
+      "dependencies": {
+        "@t3tools/monorepo": ".",
+      },
       "devDependencies": {
         "@effect/language-service": "catalog:",
         "@oxlint/plugins": "^1.63.0",
@@ -17,7 +20,7 @@
     },
     "apps/desktop": {
       "name": "@t3tools/desktop",
-      "version": "0.0.22",
+      "version": "0.0.23",
       "dependencies": {
         "@effect/platform-node": "catalog:",
         "effect": "catalog:",
@@ -52,7 +55,7 @@
     },
     "apps/server": {
       "name": "t3",
-      "version": "0.0.22",
+      "version": "0.0.23",
       "bin": {
         "t3": "./dist/bin.mjs",
       },
@@ -85,7 +88,7 @@
     },
     "apps/web": {
       "name": "@t3tools/web",
-      "version": "0.0.22",
+      "version": "0.0.23",
       "dependencies": {
         "@base-ui/react": "^1.4.1",
         "@dnd-kit/core": "^6.3.1",
@@ -167,7 +170,7 @@
     },
     "packages/contracts": {
       "name": "@t3tools/contracts",
-      "version": "0.0.22",
+      "version": "0.0.23",
       "dependencies": {
         "effect": "catalog:",
       },
@@ -801,6 +804,8 @@
     "@t3tools/desktop": ["@t3tools/desktop@workspace:apps/desktop"],
 
     "@t3tools/marketing": ["@t3tools/marketing@workspace:apps/marketing"],
+
+    "@t3tools/monorepo": ["@t3tools/monorepo@root:", {}],
 
     "@t3tools/oxlint-plugin-t3code": ["@t3tools/oxlint-plugin-t3code@workspace:oxlint-plugin-t3code"],
 

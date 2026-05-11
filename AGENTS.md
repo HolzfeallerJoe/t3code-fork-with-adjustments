@@ -2,7 +2,9 @@
 
 ## Task Completion Requirements
 
-- All of `bun fmt`, `bun lint`, and `bun typecheck` must pass before considering tasks completed.
+- Do not run repository-wide `bun lint` or `bun typecheck` by default.
+- When verification is needed, run the narrowest relevant check for the files/packages touched by the task. Prefer targeted package commands or file-scoped checks over full-repo checks.
+- Only run repository-wide `bun lint` or `bun typecheck` when explicitly requested by the user or when a broad cross-package change makes narrow checks insufficient.
 - NEVER run `bun test`. Always use `bun run test` (runs Vitest).
 
 ## Project Snapshot

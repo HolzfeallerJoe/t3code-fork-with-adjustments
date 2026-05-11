@@ -48,6 +48,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "build:contracts": "turbo run build --filter=@t3tools/contracts",
+    "prepare:fork-build": "node scripts/prepare-fork-build.ts",
+    "dist:fork": "node scripts/build-fork-installer.ts",
     "dist:desktop:artifact": "node scripts/build-desktop-artifact.ts",
     "dist:desktop:dmg": "node scripts/build-desktop-artifact.ts --platform mac --target dmg",
     "dist:desktop:dmg:arm64": "node scripts/build-desktop-artifact.ts --platform mac --target dmg --arch arm64",
@@ -59,6 +61,9 @@
     "release:smoke": "node scripts/release-smoke.ts",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .turbo apps/*/.turbo packages/*/.turbo",
     "sync:vscode-icons": "node scripts/sync-vscode-icons.mjs"
+  },
+  "dependencies": {
+    "@t3tools/monorepo": "."
   },
   "devDependencies": {
     "@effect/language-service": "catalog:",
