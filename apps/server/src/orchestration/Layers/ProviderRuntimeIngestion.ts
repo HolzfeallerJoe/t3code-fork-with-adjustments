@@ -194,8 +194,17 @@ function proposedPlanIdFromEvent(event: ProviderRuntimeEvent, threadId: ThreadId
   return `plan:${threadId}:event:${event.eventId}`;
 }
 
-function assistantSegmentBaseKeyFromEvent(event: ProviderRuntimeEvent): string {
-  return String(event.itemId ?? event.turnId ?? event.eventId);
+function assistantSegmentBaseKeyFromEvent(event: ProviderRuntimeEvent, turnId?: TurnId): string {
+  const baseKey = String(event.itemId ?? event.turnId ?? event.eventId);
+
+  // ACP providers can reuse assistant segment item ids across turns within the
+  // same session. Include the turn id for those provider-scoped assistant ids
+  // so later turns cannot merge into earlier projected assistant rows.
+  if (turnId && baseKey.startsWith("assistant:")) {
+    return `turn:${turnId}:${baseKey}`;
+  }
+
+  return baseKey;
 }
 
 function assistantSegmentMessageId(baseKey: string, segmentIndex: number): MessageId {
@@ -790,7 +799,7 @@ const make = Effect.gen(function* () {
       return yield* startAssistantSegmentForTurn({
         threadId: input.threadId,
         turnId: input.turnId,
-        baseKey: assistantSegmentBaseKeyFromEvent(input.event),
+        baseKey: assistantSegmentBaseKeyFromEvent(input.event, input.turnId),
       });
     });
 
@@ -1438,7 +1447,7 @@ const make = Effect.gen(function* () {
         event.type === "item.completed" && event.payload.itemType === "assistant_message"
           ? {
               messageId: MessageId.make(
-                `assistant:${event.itemId ?? event.turnId ?? event.eventId}`,
+                `assistant:${assistantSegmentBaseKeyFromEvent(event, toTurnId(event.turnId))}`,
               ),
               fallbackText: event.payload.detail,
             }
@@ -1613,7 +1622,7 @@ const make = Effect.gen(function* () {
             // Already tracked; no-op.
           } else {
             const assistantMessageId = MessageId.make(
-              `assistant:${event.itemId ?? event.turnId ?? event.eventId}`,
+              `assistant:${assistantSegmentBaseKeyFromEvent(event, turnId)}`,
             );
             yield* orchestrationEngine.dispatch({
               type: "thread.turn.diff.complete",

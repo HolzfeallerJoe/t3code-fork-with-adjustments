@@ -2078,6 +2078,112 @@ describe("ProviderRuntimeIngestion", () => {
     expect(finalMessage?.streaming).toBe(false);
   });
 
+  it("keeps reused ACP assistant segment ids separate across turns", async () => {
+    const harness = await createHarness({ serverSettings: { enableAssistantStreaming: true } });
+    const firstAt = "2026-01-01T00:00:00.000Z";
+    const secondAt = "2026-01-01T00:01:00.000Z";
+    const reusedItemId = asItemId("assistant:mock-session:segment:0");
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-turn-started-reused-acp-id-1"),
+      provider: ProviderDriverKind.make("cursor"),
+      threadId: asThreadId("thread-1"),
+      createdAt: firstAt,
+      turnId: asTurnId("turn-reused-acp-id-1"),
+    });
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-message-delta-reused-acp-id-1"),
+      provider: ProviderDriverKind.make("cursor"),
+      createdAt: firstAt,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reused-acp-id-1"),
+      itemId: reusedItemId,
+      payload: {
+        streamKind: "assistant_text",
+        delta: "first answer",
+      },
+    });
+    harness.emit({
+      type: "item.completed",
+      eventId: asEventId("evt-message-completed-reused-acp-id-1"),
+      provider: ProviderDriverKind.make("cursor"),
+      createdAt: firstAt,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reused-acp-id-1"),
+      itemId: reusedItemId,
+      payload: {
+        itemType: "assistant_message",
+        status: "completed",
+      },
+    });
+
+    await waitForThread(harness.readModel, (entry) =>
+      entry.messages.some(
+        (message: ProviderRuntimeTestMessage) =>
+          message.id === "assistant:turn:turn-reused-acp-id-1:assistant:mock-session:segment:0" &&
+          !message.streaming &&
+          message.text === "first answer",
+      ),
+    );
+
+    harness.emit({
+      type: "turn.started",
+      eventId: asEventId("evt-turn-started-reused-acp-id-2"),
+      provider: ProviderDriverKind.make("cursor"),
+      threadId: asThreadId("thread-1"),
+      createdAt: secondAt,
+      turnId: asTurnId("turn-reused-acp-id-2"),
+    });
+    harness.emit({
+      type: "content.delta",
+      eventId: asEventId("evt-message-delta-reused-acp-id-2"),
+      provider: ProviderDriverKind.make("cursor"),
+      createdAt: secondAt,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reused-acp-id-2"),
+      itemId: reusedItemId,
+      payload: {
+        streamKind: "assistant_text",
+        delta: "second answer",
+      },
+    });
+    harness.emit({
+      type: "item.completed",
+      eventId: asEventId("evt-message-completed-reused-acp-id-2"),
+      provider: ProviderDriverKind.make("cursor"),
+      createdAt: secondAt,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-reused-acp-id-2"),
+      itemId: reusedItemId,
+      payload: {
+        itemType: "assistant_message",
+        status: "completed",
+      },
+    });
+
+    const thread = await waitForThread(harness.readModel, (entry) =>
+      entry.messages.some(
+        (message: ProviderRuntimeTestMessage) =>
+          message.id === "assistant:turn:turn-reused-acp-id-2:assistant:mock-session:segment:0" &&
+          !message.streaming &&
+          message.text === "second answer",
+      ),
+    );
+    const firstMessage = thread.messages.find(
+      (message: ProviderRuntimeTestMessage) =>
+        message.id === "assistant:turn:turn-reused-acp-id-1:assistant:mock-session:segment:0",
+    );
+    const secondMessage = thread.messages.find(
+      (message: ProviderRuntimeTestMessage) =>
+        message.id === "assistant:turn:turn-reused-acp-id-2:assistant:mock-session:segment:0",
+    );
+
+    expect(firstMessage?.text).toBe("first answer");
+    expect(secondMessage?.text).toBe("second answer");
+  });
+
   it("spills oversized buffered deltas and still finalizes full assistant text", async () => {
     const harness = await createHarness();
     const now = "2026-01-01T00:00:00.000Z";

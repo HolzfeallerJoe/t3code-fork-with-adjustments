@@ -1367,6 +1367,131 @@ it.layer(BaseTestLayer)("OrchestrationProjectionPipeline", (it) => {
     }),
   );
 
+  it.effect("separates reused assistant message ids across different turns", () =>
+    Effect.gen(function* () {
+      const projectionPipeline = yield* OrchestrationProjectionPipeline;
+      const eventStore = yield* OrchestrationEventStore;
+      const sql = yield* SqlClient.SqlClient;
+      const now = "2026-01-01T00:00:00.000Z";
+      const later = "2026-01-01T00:01:00.000Z";
+      const append = (event: Parameters<typeof eventStore.append>[0]) => eventStore.append(event);
+
+      yield* append({
+        type: "thread.message-sent",
+        eventId: EventId.make("evt-reused-assistant-message-1"),
+        aggregateKind: "thread",
+        aggregateId: ThreadId.make("thread-reused-assistant-message"),
+        occurredAt: now,
+        commandId: CommandId.make("cmd-reused-assistant-message-1"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-reused-assistant-message-1"),
+        metadata: {},
+        payload: {
+          threadId: ThreadId.make("thread-reused-assistant-message"),
+          messageId: MessageId.make("assistant:session-1:segment:0"),
+          role: "assistant",
+          text: "first",
+          turnId: TurnId.make("turn-reused-assistant-message-1"),
+          streaming: false,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+      yield* append({
+        type: "thread.message-sent",
+        eventId: EventId.make("evt-reused-assistant-message-2-delta"),
+        aggregateKind: "thread",
+        aggregateId: ThreadId.make("thread-reused-assistant-message"),
+        occurredAt: later,
+        commandId: CommandId.make("cmd-reused-assistant-message-2-delta"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-reused-assistant-message-2-delta"),
+        metadata: {},
+        payload: {
+          threadId: ThreadId.make("thread-reused-assistant-message"),
+          messageId: MessageId.make("assistant:session-1:segment:0"),
+          role: "assistant",
+          text: "second",
+          turnId: TurnId.make("turn-reused-assistant-message-2"),
+          streaming: true,
+          createdAt: later,
+          updatedAt: later,
+        },
+      });
+      yield* append({
+        type: "thread.message-sent",
+        eventId: EventId.make("evt-reused-assistant-message-2-final"),
+        aggregateKind: "thread",
+        aggregateId: ThreadId.make("thread-reused-assistant-message"),
+        occurredAt: later,
+        commandId: CommandId.make("cmd-reused-assistant-message-2-final"),
+        causationEventId: null,
+        correlationId: CorrelationId.make("cmd-reused-assistant-message-2-final"),
+        metadata: {},
+        payload: {
+          threadId: ThreadId.make("thread-reused-assistant-message"),
+          messageId: MessageId.make("assistant:session-1:segment:0"),
+          role: "assistant",
+          text: "",
+          turnId: TurnId.make("turn-reused-assistant-message-2"),
+          streaming: false,
+          createdAt: later,
+          updatedAt: later,
+        },
+      });
+
+      yield* projectionPipeline.bootstrap;
+
+      const messageRows = yield* sql<{
+        readonly messageId: string;
+        readonly turnId: string | null;
+        readonly text: string;
+      }>`
+        SELECT
+          message_id AS "messageId",
+          turn_id AS "turnId",
+          text
+        FROM projection_thread_messages
+        WHERE thread_id = 'thread-reused-assistant-message'
+        ORDER BY created_at ASC, message_id ASC
+      `;
+      assert.deepEqual(messageRows, [
+        {
+          messageId: "assistant:session-1:segment:0",
+          turnId: "turn-reused-assistant-message-1",
+          text: "first",
+        },
+        {
+          messageId: "assistant:session-1:segment:0:turn:turn-reused-assistant-message-2",
+          turnId: "turn-reused-assistant-message-2",
+          text: "second",
+        },
+      ]);
+
+      const turnRows = yield* sql<{
+        readonly turnId: string;
+        readonly assistantMessageId: string | null;
+      }>`
+        SELECT
+          turn_id AS "turnId",
+          assistant_message_id AS "assistantMessageId"
+        FROM projection_turns
+        WHERE thread_id = 'thread-reused-assistant-message'
+        ORDER BY turn_id ASC
+      `;
+      assert.deepEqual(turnRows, [
+        {
+          turnId: "turn-reused-assistant-message-1",
+          assistantMessageId: "assistant:session-1:segment:0",
+        },
+        {
+          turnId: "turn-reused-assistant-message-2",
+          assistantMessageId: "assistant:session-1:segment:0:turn:turn-reused-assistant-message-2",
+        },
+      ]);
+    }),
+  );
+
   it.effect(
     "resolves turn-count conflicts when checkpoint completion rewrites provisional turns",
     () =>
