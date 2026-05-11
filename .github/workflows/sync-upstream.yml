@@ -33,7 +33,7 @@ jobs:
 
       - name: Add upstream remote and fetch tags
         run: |
-          git remote add upstream https://github.com/T3Tools/t3code.git || true
+          git remote add upstream https://github.com/pingdotgg/t3code.git || true
           git fetch upstream --tags
 
       - name: Find latest stable release tag
@@ -102,7 +102,7 @@ jobs:
             The automatic sync with upstream stable release failed due to merge conflicts.
 
             ### What happened
-            - Upstream repository: \`T3Tools/t3code\`
+            - Upstream repository: \`pingdotgg/t3code\`
             - Attempted to merge: \`${latestTag}\` (stable release)
             - Result: **Merge conflict detected**
 
@@ -111,7 +111,7 @@ jobs:
 
             \`\`\`bash
             # Add upstream if not already added
-            git remote add upstream https://github.com/T3Tools/t3code.git
+            git remote add upstream https://github.com/pingdotgg/t3code.git
 
             # Fetch upstream tags
             git fetch upstream --tags
