@@ -643,6 +643,7 @@ describe("wsApi", () => {
       sidebarThreadSortOrder: "created_at" as const,
       sidebarThreadPreviewCount: 6,
       timestampFormat: "24-hour" as const,
+      usageLimitDisplayMode: "remaining" as const,
     };
     const getClientSettings = vi.fn().mockResolvedValue({
       ...clientSettings,
@@ -706,6 +707,7 @@ describe("wsApi", () => {
       sidebarThreadSortOrder: "created_at" as const,
       sidebarThreadPreviewCount: 6,
       timestampFormat: "24-hour" as const,
+      usageLimitDisplayMode: "remaining" as const,
     };
 
     await api.persistence.setClientSettings(clientSettings);

@@ -13,6 +13,10 @@ export const TimestampFormat = Schema.Literals(["locale", "12-hour", "24-hour"])
 export type TimestampFormat = typeof TimestampFormat.Type;
 export const DEFAULT_TIMESTAMP_FORMAT: TimestampFormat = "locale";
 
+export const UsageLimitDisplayMode = Schema.Literals(["remaining", "used"]);
+export type UsageLimitDisplayMode = typeof UsageLimitDisplayMode.Type;
+export const DEFAULT_USAGE_LIMIT_DISPLAY_MODE: UsageLimitDisplayMode = "remaining";
+
 export const SidebarProjectSortOrder = Schema.Literals(["updated_at", "created_at", "manual"]);
 export type SidebarProjectSortOrder = typeof SidebarProjectSortOrder.Type;
 export const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER: SidebarProjectSortOrder = "updated_at";
@@ -91,6 +95,9 @@ export const ClientSettingsSchema = Schema.Struct({
   ),
   timestampFormat: TimestampFormat.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_TIMESTAMP_FORMAT)),
+  ),
+  usageLimitDisplayMode: UsageLimitDisplayMode.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_USAGE_LIMIT_DISPLAY_MODE)),
   ),
 });
 export type ClientSettings = typeof ClientSettingsSchema.Type;
@@ -509,5 +516,6 @@ export const ClientSettingsPatch = Schema.Struct({
   sidebarThreadSortOrder: Schema.optionalKey(SidebarThreadSortOrder),
   sidebarThreadPreviewCount: Schema.optionalKey(SidebarThreadPreviewCount),
   timestampFormat: Schema.optionalKey(TimestampFormat),
+  usageLimitDisplayMode: Schema.optionalKey(UsageLimitDisplayMode),
 });
 export type ClientSettingsPatch = typeof ClientSettingsPatch.Type;

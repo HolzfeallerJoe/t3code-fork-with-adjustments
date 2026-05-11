@@ -4,6 +4,7 @@ import type {
   ProviderInstanceId,
   ThreadId,
 } from "@t3tools/contracts";
+import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
 import type { AppState } from "../store";
 
 export interface UsageLimitWindowSnapshot {
@@ -279,6 +280,9 @@ function matchesProvider(
   ) {
     return snapshot.provider === options.provider;
   }
+  if (options.providerInstanceId && !snapshot.providerInstanceId) {
+    return false;
+  }
   if (options.provider && !snapshot.provider) {
     return false;
   }
@@ -391,8 +395,37 @@ export function deriveLatestAccountRateLimitsSnapshotFromState(
   return latest;
 }
 
-export function formatUsageLimitPercent(window: UsageLimitWindowSnapshot | null): string {
-  return window ? `${window.usedPercent}%` : "--";
+export function formatUsageLimitPercent(
+  window: UsageLimitWindowSnapshot | null,
+  mode: UsageLimitDisplayMode = "used",
+): string {
+  if (!window) {
+    return "--";
+  }
+  const percent = mode === "remaining" ? 100 - window.usedPercent : window.usedPercent;
+  return `${Math.max(0, Math.min(100, percent))}%`;
+}
+
+export function isUsageLimitWindowExhausted(window: UsageLimitWindowSnapshot | null): boolean {
+  return Boolean(window && window.usedPercent >= 100);
+}
+
+export function formatUsageLimitChipValue(
+  window: UsageLimitWindowSnapshot | null,
+  mode: UsageLimitDisplayMode = "remaining",
+): string {
+  return formatUsageLimitPercent(window, mode);
+}
+
+export function formatUsageLimitTooltipValue(
+  window: UsageLimitWindowSnapshot | null,
+  mode: UsageLimitDisplayMode = "remaining",
+): string {
+  const percent = formatUsageLimitPercent(window, mode);
+  if (percent === "--") {
+    return percent;
+  }
+  return mode === "remaining" ? `${percent} left` : `${percent} used`;
 }
 
 export function formatUsageWindowLabel(window: UsageLimitWindowSnapshot | null): string {

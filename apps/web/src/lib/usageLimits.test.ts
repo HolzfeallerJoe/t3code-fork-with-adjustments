@@ -4,8 +4,11 @@ import { EventId, type OrchestrationThreadActivity, ThreadId, TurnId } from "@t3
 import {
   deriveLatestAccountRateLimitsSnapshot,
   deriveLatestAccountRateLimitsSnapshotFromState,
+  formatUsageLimitChipValue,
   formatUsageLimitPercent,
+  formatUsageLimitTooltipValue,
   formatUsageWindowLabel,
+  isUsageLimitWindowExhausted,
 } from "./usageLimits";
 
 function makeActivity(id: string, kind: string, payload: unknown): OrchestrationThreadActivity {
@@ -134,6 +137,29 @@ describe("usageLimits", () => {
     expect(formatUsageLimitPercent(null)).toBe("--");
   });
 
+  it("formats limit chips as remaining or used percentages", () => {
+    const snapshot = deriveLatestAccountRateLimitsSnapshot([
+      makeActivity("activity-1", "account-rate-limits.updated", {
+        provider: "codex",
+        rateLimits: {
+          primary: {
+            usedPercent: 100,
+            windowDurationMins: 300,
+            resetsAt: 1_775_000_000,
+          },
+        },
+      }),
+    ]);
+    const window = snapshot?.windows[0] ?? null;
+
+    expect(isUsageLimitWindowExhausted(window)).toBe(true);
+    expect(formatUsageLimitPercent(window)).toBe("100%");
+    expect(formatUsageLimitChipValue(window, "remaining")).toBe("0%");
+    expect(formatUsageLimitChipValue(window, "used")).toBe("100%");
+    expect(formatUsageLimitTooltipValue(window, "remaining")).toBe("0% left");
+    expect(formatUsageLimitTooltipValue(window, "used")).toBe("100% used");
+  });
+
   it("derives the latest rate limits across loaded thread activity state", () => {
     const older = makeActivity("activity-1", "account-rate-limits.updated", {
       rateLimits: {
@@ -255,5 +281,26 @@ describe("usageLimits", () => {
 
     expect(snapshot?.provider).toBe("claudeAgent");
     expect(snapshot?.windows[0]?.usedPercent).toBe(66);
+  });
+
+  it("does not use unknown-provider limits when filtering to a selected provider", () => {
+    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+      [
+        makeActivity("activity-1", "account-rate-limits.updated", {
+          rateLimits: {
+            primary: {
+              usedPercent: 12,
+              windowDurationMins: 300,
+            },
+          },
+        }),
+      ],
+      {
+        provider: "cursor",
+        providerInstanceId: "cursor",
+      },
+    );
+
+    expect(snapshot).toBeNull();
   });
 });

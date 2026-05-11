@@ -52,6 +52,7 @@ import { Button } from "../ui/button";
 import { DraftInput } from "../ui/draft-input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
+import { Toggle, ToggleGroup } from "../ui/toggle-group";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { AddProviderInstanceDialog } from "./AddProviderInstanceDialog";
@@ -97,6 +98,11 @@ const TIMESTAMP_FORMAT_LABELS = {
   locale: "System default",
   "12-hour": "12-hour",
   "24-hour": "24-hour",
+} as const;
+
+const USAGE_LIMIT_DISPLAY_MODE_LABELS = {
+  remaining: "Remaining",
+  used: "Used",
 } as const;
 
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
@@ -393,6 +399,9 @@ export function useSettingsRestore(onRestored?: () => void) {
       ...(settings.timestampFormat !== DEFAULT_UNIFIED_SETTINGS.timestampFormat
         ? ["Time format"]
         : []),
+      ...(settings.usageLimitDisplayMode !== DEFAULT_UNIFIED_SETTINGS.usageLimitDisplayMode
+        ? ["Usage limit display"]
+        : []),
       ...(settings.sidebarThreadPreviewCount !== DEFAULT_UNIFIED_SETTINGS.sidebarThreadPreviewCount
         ? ["Visible threads"]
         : []),
@@ -439,6 +448,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       settings.enableAssistantStreaming,
       settings.sidebarThreadPreviewCount,
       settings.timestampFormat,
+      settings.usageLimitDisplayMode,
       theme,
     ],
   );
@@ -466,6 +476,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       addProjectBaseDirectory: DEFAULT_UNIFIED_SETTINGS.addProjectBaseDirectory,
       confirmThreadArchive: DEFAULT_UNIFIED_SETTINGS.confirmThreadArchive,
       confirmThreadDelete: DEFAULT_UNIFIED_SETTINGS.confirmThreadDelete,
+      usageLimitDisplayMode: DEFAULT_UNIFIED_SETTINGS.usageLimitDisplayMode,
       textGenerationModelSelection: DEFAULT_UNIFIED_SETTINGS.textGenerationModelSelection,
     });
     onRestored?.();
@@ -589,6 +600,44 @@ export function GeneralSettingsPanel() {
                 </SelectItem>
               </SelectPopup>
             </Select>
+          }
+        />
+
+        <SettingsRow
+          title="Usage limit display"
+          description="Choose whether toolbar limit chips show capacity left or quota already used."
+          resetAction={
+            settings.usageLimitDisplayMode !== DEFAULT_UNIFIED_SETTINGS.usageLimitDisplayMode ? (
+              <SettingResetButton
+                label="usage limit display"
+                onClick={() =>
+                  updateSettings({
+                    usageLimitDisplayMode: DEFAULT_UNIFIED_SETTINGS.usageLimitDisplayMode,
+                  })
+                }
+              />
+            ) : null
+          }
+          control={
+            <ToggleGroup
+              variant="outline"
+              size="xs"
+              value={[settings.usageLimitDisplayMode]}
+              onValueChange={(value) => {
+                const next = value[0];
+                if (next === "remaining" || next === "used") {
+                  updateSettings({ usageLimitDisplayMode: next });
+                }
+              }}
+              aria-label="Usage limit display"
+            >
+              <Toggle value="remaining" aria-label="Show usage limits remaining">
+                {USAGE_LIMIT_DISPLAY_MODE_LABELS.remaining}
+              </Toggle>
+              <Toggle value="used" aria-label="Show usage limits used">
+                {USAGE_LIMIT_DISPLAY_MODE_LABELS.used}
+              </Toggle>
+            </ToggleGroup>
           }
         />
 

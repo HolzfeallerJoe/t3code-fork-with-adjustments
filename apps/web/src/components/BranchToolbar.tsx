@@ -10,8 +10,13 @@ import {
 } from "lucide-react";
 import { memo, useMemo } from "react";
 
-import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
+import {
+  useComposerDraftModelState,
+  useComposerDraftStore,
+  type DraftId,
+} from "../composerDraftStore";
 import { useIsMobile } from "../hooks/useMediaQuery";
+import { useSettings } from "../hooks/useSettings";
 import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
 import { deriveLatestAccountRateLimitsSnapshotFromState } from "../lib/usageLimits";
 import { type AppState, useStore } from "../store";
@@ -214,6 +219,8 @@ export const BranchToolbar = memo(function BranchToolbar({
   );
   const serverThreadSelector = useMemo(() => createThreadSelectorByRef(threadRef), [threadRef]);
   const serverThread = useStore(serverThreadSelector);
+  const composerDraftTarget = draftId ?? threadRef;
+  const composerModelState = useComposerDraftModelState(composerDraftTarget);
   const draftThread = useComposerDraftStore((store) =>
     draftId ? store.getDraftSession(draftId) : store.getDraftThreadByRef(threadRef),
   );
@@ -242,6 +249,7 @@ export const BranchToolbar = memo(function BranchToolbar({
     availableEnvironments && availableEnvironments.length > 1 && onEnvironmentChange,
   );
   const isMobile = useIsMobile();
+  const usageLimitDisplayMode = useSettings((settings) => settings.usageLimitDisplayMode);
   const threadActivities = serverThread?.activities;
   const activeContextWindow = useMemo(
     () => deriveLatestContextWindowSnapshot(threadActivities ?? EMPTY_THREAD_ACTIVITIES),
@@ -251,8 +259,11 @@ export const BranchToolbar = memo(function BranchToolbar({
   const environmentStateById = useStore((state) => state.environmentStateById);
   const activeRateLimits = useMemo(() => {
     const providerInstanceId =
-      serverThread?.session?.providerInstanceId ?? serverThread?.modelSelection.instanceId ?? null;
-    const provider = serverThread?.session?.provider ?? null;
+      composerModelState.activeProvider ??
+      serverThread?.session?.providerInstanceId ??
+      serverThread?.modelSelection.instanceId ??
+      null;
+    const provider = composerModelState.activeProvider ?? serverThread?.session?.provider ?? null;
     return deriveLatestAccountRateLimitsSnapshotFromState(
       {
         activeEnvironmentId,
@@ -265,6 +276,7 @@ export const BranchToolbar = memo(function BranchToolbar({
     );
   }, [
     activeEnvironmentId,
+    composerModelState.activeProvider,
     environmentStateById,
     serverThread?.modelSelection.instanceId,
     serverThread?.session?.provider,
@@ -328,6 +340,7 @@ export const BranchToolbar = memo(function BranchToolbar({
         className="ml-auto hidden shrink-0 sm:flex"
         contextWindow={activeContextWindow}
         rateLimits={activeRateLimits}
+        usageLimitDisplayMode={usageLimitDisplayMode}
       />
     </div>
   );
