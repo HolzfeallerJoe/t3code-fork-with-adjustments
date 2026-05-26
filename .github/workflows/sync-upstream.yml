@@ -31,6 +31,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Register the "ours" merge driver used by .gitattributes to keep the
+          # fork's own release workflow file (see /.github/workflows/release.yml)
+          git config merge.ours.driver true
 
       - name: Add upstream remote and fetch tags
         run: |
@@ -76,8 +79,40 @@ jobs:
         continue-on-error: true
         run: |
           LATEST_TAG="${{ steps.find_stable.outputs.latest_tag }}"
+          IGNORE_PATH=".github/workflows/release.yml"
           echo "Merging stable release $LATEST_TAG..."
-          git merge "$LATEST_TAG" --no-edit -m "Merge upstream stable release $LATEST_TAG"
+          BEFORE_SHA=$(git rev-parse HEAD)
+
+          # Don't let conflicts abort the step; we inspect them below.
+          git merge "$LATEST_TAG" --no-edit -m "Merge upstream stable release $LATEST_TAG" || true
+
+          # If anything OTHER than the ignored release workflow conflicted, it's a
+          # genuine conflict -> abort and let the conflict handler open an issue.
+          CONFLICTS=$(git diff --name-only --diff-filter=U)
+          if [ -n "$CONFLICTS" ] && [ "$CONFLICTS" != "$IGNORE_PATH" ]; then
+            echo "Genuine merge conflict in:"
+            echo "$CONFLICTS"
+            git merge --abort || true
+            exit 1
+          fi
+
+          # Force the fork's own state of the release workflow, ignoring upstream.
+          # This covers the file being kept, modified, or deleted in the fork,
+          # including a modify/delete conflict when upstream changed it.
+          if git cat-file -e "$BEFORE_SHA:$IGNORE_PATH" 2>/dev/null; then
+            git checkout "$BEFORE_SHA" -- "$IGNORE_PATH"
+          else
+            git rm -f --ignore-unmatch -- "$IGNORE_PATH"
+          fi
+
+          if [ -f .git/MERGE_HEAD ]; then
+            # Conflict path: finalize the in-progress merge.
+            git commit --no-edit
+          elif ! git diff --cached --quiet; then
+            # Clean merge that pulled in upstream's release.yml: amend it out.
+            echo "Reverted upstream changes to release.yml, amending merge commit"
+            git commit --amend --no-edit
+          fi
           echo "merge_success=true" >> $GITHUB_OUTPUT
 
       - name: Check for merge conflicts
