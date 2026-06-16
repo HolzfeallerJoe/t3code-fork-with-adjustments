@@ -1,5 +1,11 @@
-import { ProviderDriverKind, ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
+import {
+  ProviderDriverKind,
+  ProviderInstanceId,
+  type ModelCapabilities,
+  type ServerProvider,
+} from "@t3tools/contracts";
 import { DEFAULT_UNIFIED_SETTINGS, type UnifiedSettings } from "@t3tools/contracts/settings";
+import { createModelCapabilities } from "@t3tools/shared/model";
 import { describe, expect, it } from "vitest";
 import { deriveProviderInstanceEntries } from "./providerInstances";
 import {
@@ -12,6 +18,7 @@ function provider(input: {
   provider?: ProviderDriverKind;
   instanceId: string;
   models?: ReadonlyArray<string>;
+  modelCapabilities?: Readonly<Record<string, ModelCapabilities>>;
 }): ServerProvider {
   const driver =
     input.provider ??
@@ -31,7 +38,7 @@ function provider(input: {
       slug,
       name: slug,
       isCustom: false,
-      capabilities: {},
+      capabilities: input.modelCapabilities?.[slug] ?? {},
     })),
     slashCommands: [],
     skills: [],
@@ -246,6 +253,48 @@ describe("instance-scoped model selection", () => {
     expect(resolveAppModelSelectionState(settings, providers)).toEqual({
       instanceId: ProviderInstanceId.make("claude_openrouter"),
       model: "openai/gpt-5.5",
+    });
+  });
+
+  it("applies per-instance default model options when no explicit selection exists", () => {
+    const instanceId = ProviderInstanceId.make("codex");
+    const providers = [
+      provider({
+        instanceId,
+        models: ["gpt-5.4"],
+        modelCapabilities: {
+          "gpt-5.4": createModelCapabilities({
+            optionDescriptors: [
+              {
+                id: "reasoningEffort",
+                label: "Reasoning",
+                type: "select",
+                options: [
+                  { id: "medium", label: "Medium", isDefault: true },
+                  { id: "high", label: "High" },
+                ],
+                currentValue: "medium",
+              },
+            ],
+          }),
+        },
+      }),
+    ];
+    const settings: UnifiedSettings = {
+      ...DEFAULT_UNIFIED_SETTINGS,
+      providerModelPreferences: {
+        [instanceId]: {
+          defaultOptions: [{ id: "reasoningEffort", value: "high" }],
+          hiddenModels: [],
+          modelOrder: [],
+        },
+      },
+    };
+
+    expect(resolveAppModelSelectionState(settings, providers)).toEqual({
+      instanceId,
+      model: "gpt-5.4",
+      options: [{ id: "reasoningEffort", value: "high" }],
     });
   });
 });

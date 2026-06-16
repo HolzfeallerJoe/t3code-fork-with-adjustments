@@ -17,6 +17,7 @@ import {
   type ServerProvider,
   type SourceControlDiscoveryResult,
 } from "@t3tools/contracts";
+import { createModelCapabilities } from "@t3tools/shared/model";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 import { page } from "vitest/browser";
@@ -1168,6 +1169,58 @@ describe("GeneralSettingsPanel observability", () => {
     await expect.element(page.getByPlaceholder("http://127.0.0.1:4096")).toBeInTheDocument();
     await expect.element(page.getByText("Server password")).toBeInTheDocument();
     await expect.element(page.getByPlaceholder("Optional")).toBeInTheDocument();
+  });
+
+  it("shows a default reasoning effort field for reasoning-capable provider models", async () => {
+    setServerConfigSnapshot({
+      ...createBaseServerConfig(),
+      providers: [
+        {
+          instanceId: ProviderInstanceId.make("codex"),
+          driver: ProviderDriverKind.make("codex"),
+          enabled: true,
+          installed: true,
+          version: null,
+          status: "ready",
+          auth: { status: "authenticated" },
+          checkedAt: "2026-05-04T10:00:00.000Z",
+          models: [
+            {
+              slug: "gpt-5.4",
+              name: "GPT-5.4",
+              isCustom: false,
+              capabilities: createModelCapabilities({
+                optionDescriptors: [
+                  {
+                    id: "reasoningEffort",
+                    label: "Reasoning",
+                    type: "select",
+                    options: [
+                      { id: "medium", label: "Medium", isDefault: true },
+                      { id: "high", label: "High" },
+                    ],
+                    currentValue: "medium",
+                  },
+                ],
+              }),
+            },
+          ],
+          slashCommands: [],
+          skills: [],
+        },
+      ],
+    });
+
+    mounted = await render(
+      <AppAtomRegistryProvider>
+        <ProviderSettingsPanel />
+      </AppAtomRegistryProvider>,
+    );
+
+    await page.getByLabelText("Toggle Codex details").click();
+
+    await expect.element(page.getByText("Default reasoning effort")).toBeInTheDocument();
+    await expect.element(page.getByLabelText("Default reasoning effort")).toBeInTheDocument();
   });
 
   it("runs one-click provider updates from the provider card", async () => {

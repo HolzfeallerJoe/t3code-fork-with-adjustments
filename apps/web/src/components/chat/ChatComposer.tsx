@@ -719,6 +719,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     () => selectedProviderEntry?.models ?? [],
     [selectedProviderEntry],
   );
+  const selectedComposerModelOptions =
+    composerModelOptions?.[selectedInstanceId] ?? composerModelOptions?.[selectedProvider];
 
   const composerProviderState = useMemo(
     () =>
@@ -727,9 +729,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         model: selectedModel,
         models: selectedProviderModels,
         prompt,
-        modelOptions: composerModelOptions?.[selectedProvider],
+        modelOptions: selectedComposerModelOptions,
       }),
-    [composerModelOptions, prompt, selectedModel, selectedProvider, selectedProviderModels],
+    [prompt, selectedComposerModelOptions, selectedModel, selectedProvider, selectedProviderModels],
   );
 
   const selectedPromptEffort = composerProviderState.promptEffort;
@@ -1022,7 +1024,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ...(routeKind === "draft" && draftId ? { draftId } : {}),
     model: selectedModel,
     models: selectedProviderModels,
-    modelOptions: composerModelOptions?.[selectedProvider],
+    modelOptions: selectedComposerModelOptions,
     prompt,
     onPromptChange: setPromptFromTraits,
   });
@@ -1032,7 +1034,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     ...(routeKind === "draft" && draftId ? { draftId } : {}),
     model: selectedModel,
     models: selectedProviderModels,
-    modelOptions: composerModelOptions?.[selectedProvider],
+    modelOptions: selectedComposerModelOptions,
     prompt,
     onPromptChange: setPromptFromTraits,
   });

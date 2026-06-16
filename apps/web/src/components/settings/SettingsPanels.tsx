@@ -9,6 +9,7 @@ import {
   ProviderDriverKind,
   type ProviderInstanceConfig,
   type ProviderInstanceId,
+  type ProviderOptionSelection,
   type ScopedThreadRef,
 } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime";
@@ -1166,20 +1167,29 @@ export function ProviderSettingsPanel() {
   const updateProviderModelPreferences = (
     instanceId: ProviderInstanceId,
     next: {
+      readonly defaultOptions?: ReadonlyArray<ProviderOptionSelection> | undefined;
       readonly hiddenModels: ReadonlyArray<string>;
       readonly modelOrder: ReadonlyArray<string>;
     },
   ) => {
     const hiddenModels = [...new Set(next.hiddenModels.filter((slug) => slug.trim().length > 0))];
     const modelOrder = [...new Set(next.modelOrder.filter((slug) => slug.trim().length > 0))];
+    const defaultOptions =
+      next.defaultOptions?.filter(
+        (selection) =>
+          selection.id.trim().length > 0 &&
+          (typeof selection.value === "boolean" ||
+            (typeof selection.value === "string" && selection.value.trim().length > 0)),
+      ) ?? [];
     const rest = withoutProviderInstanceKey(settings.providerModelPreferences, instanceId);
     updateSettings({
       providerModelPreferences:
-        hiddenModels.length === 0 && modelOrder.length === 0
+        hiddenModels.length === 0 && modelOrder.length === 0 && defaultOptions.length === 0
           ? rest
           : {
               ...rest,
               [instanceId]: {
+                ...(defaultOptions.length > 0 ? { defaultOptions } : {}),
                 hiddenModels,
                 modelOrder,
               },
@@ -1338,6 +1348,7 @@ export function ProviderSettingsPanel() {
               }}
               onDelete={row.isDefault ? undefined : () => deleteProviderInstance(row.instanceId)}
               headerAction={headerAction}
+              defaultModelOptions={modelPreferences.defaultOptions ?? []}
               hiddenModels={modelPreferences.hiddenModels}
               favoriteModels={favoriteModels}
               modelOrder={modelPreferences.modelOrder}
@@ -1345,6 +1356,12 @@ export function ProviderSettingsPanel() {
                 updateProviderModelPreferences(row.instanceId, {
                   ...modelPreferences,
                   hiddenModels,
+                })
+              }
+              onDefaultModelOptionsChange={(defaultOptions) =>
+                updateProviderModelPreferences(row.instanceId, {
+                  ...modelPreferences,
+                  defaultOptions,
                 })
               }
               onFavoriteModelsChange={(favoriteModels) =>

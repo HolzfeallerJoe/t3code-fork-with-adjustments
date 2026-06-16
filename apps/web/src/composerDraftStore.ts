@@ -29,7 +29,11 @@ import { DeepMutable } from "effect/Types";
 import { createModelSelection, normalizeModelSlug } from "@t3tools/shared/model";
 import { useMemo } from "react";
 import { getLocalStorageItem } from "./hooks/useLocalStorage";
-import { resolveAppModelSelection, resolveAppModelSelectionForInstance } from "./modelSelection";
+import {
+  getProviderDefaultModelOptions,
+  resolveAppModelSelection,
+  resolveAppModelSelectionForInstance,
+} from "./modelSelection";
 import { DEFAULT_INTERACTION_MODE, DEFAULT_RUNTIME_MODE, type ChatImageAttachment } from "./types";
 import {
   type TerminalContextDraft,
@@ -904,10 +908,22 @@ export function deriveEffectiveComposerModelState(input: {
     providerSelectionsFromModelSelection(input.threadModelSelection) ??
     providerSelectionsFromModelSelection(input.projectModelSelection) ??
     null;
+  const selectedInstanceId =
+    input.selectedInstanceId ??
+    activeSelection?.instanceId ??
+    ProviderInstanceId.make(input.selectedProvider);
+  const defaultModelOptions = getProviderDefaultModelOptions(input.settings, selectedInstanceId);
+  const modelOptionsWithDefaults =
+    defaultModelOptions && !modelOptions?.[selectedInstanceId]
+      ? {
+          ...(modelOptions ?? {}),
+          [selectedInstanceId]: defaultModelOptions,
+        }
+      : modelOptions;
 
   return {
     selectedModel,
-    modelOptions,
+    modelOptions: modelOptionsWithDefaults,
   };
 }
 

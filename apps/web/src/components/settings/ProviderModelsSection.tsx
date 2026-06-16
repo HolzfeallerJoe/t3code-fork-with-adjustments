@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import {
+  type ProviderOptionDescriptor,
+  type ProviderOptionSelection,
   ProviderDriverKind,
   type ProviderInstanceId,
   type ServerProviderModel,
@@ -23,6 +25,7 @@ import { sortModelsForProviderInstance } from "../../modelOrdering";
 import { MAX_CUSTOM_MODEL_LENGTH } from "../../modelSelection";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 /**
@@ -36,6 +39,8 @@ const CUSTOM_MODEL_PLACEHOLDER_BY_KIND: Partial<Record<ProviderDriverKind, strin
   [ProviderDriverKind.make("cursor")]: "claude-sonnet-4-6",
   [ProviderDriverKind.make("opencode")]: "openai/gpt-5",
 };
+const REASONING_DESCRIPTOR_IDS = ["reasoningEffort", "effort", "reasoning", "variant"] as const;
+const MODEL_DEFAULT_VALUE = "__model_default__";
 
 interface ProviderModelsSectionProps {
   /** Identifier used to namespace input ids within the DOM. */
@@ -62,6 +67,8 @@ interface ProviderModelsSectionProps {
   readonly favoriteModels: ReadonlyArray<string>;
   /** Explicit user-authored model ordering for this provider instance. */
   readonly modelOrder: ReadonlyArray<string>;
+  /** Default model options applied when a thread/draft has no explicit selections. */
+  readonly defaultModelOptions: ReadonlyArray<ProviderOptionSelection>;
   /**
    * Commit the new custom-model list. Caller is responsible for routing the
    * write to the correct storage (legacy `settings.providers[kind]` vs.
@@ -71,6 +78,90 @@ interface ProviderModelsSectionProps {
   readonly onHiddenModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onFavoriteModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onModelOrderChange: (next: ReadonlyArray<string>) => void;
+  readonly onDefaultModelOptionsChange: (next: ReadonlyArray<ProviderOptionSelection>) => void;
+}
+
+type ReasoningDefaultOption = {
+  readonly id: string;
+  readonly label: string;
+};
+
+type ReasoningDefaultModel = {
+  readonly descriptorId: string;
+  readonly label: string;
+  readonly options: ReadonlyArray<ReasoningDefaultOption>;
+};
+
+function getReasoningDescriptor(
+  model: ServerProviderModel,
+): Extract<ProviderOptionDescriptor, { type: "select" }> | null {
+  const descriptors = model.capabilities?.optionDescriptors ?? [];
+  for (const id of REASONING_DESCRIPTOR_IDS) {
+    const descriptor = descriptors.find(
+      (candidate): candidate is Extract<ProviderOptionDescriptor, { type: "select" }> =>
+        candidate.type === "select" && candidate.id === id,
+    );
+    if (descriptor) {
+      return descriptor;
+    }
+  }
+  return null;
+}
+
+function deriveReasoningDefaultModel(
+  models: ReadonlyArray<ServerProviderModel>,
+): ReasoningDefaultModel | null {
+  const descriptors = models.flatMap((model) => {
+    const descriptor = getReasoningDescriptor(model);
+    return descriptor ? [descriptor] : [];
+  });
+  if (descriptors.length === 0) {
+    return null;
+  }
+
+  const descriptorId =
+    REASONING_DESCRIPTOR_IDS.find((id) => descriptors.some((descriptor) => descriptor.id === id)) ??
+    descriptors[0]!.id;
+  const matchingDescriptors = descriptors.filter((descriptor) => descriptor.id === descriptorId);
+  const optionsById = new Map<string, ReasoningDefaultOption>();
+  for (const descriptor of matchingDescriptors) {
+    for (const option of descriptor.options) {
+      if (!optionsById.has(option.id)) {
+        optionsById.set(option.id, { id: option.id, label: option.label });
+      }
+    }
+  }
+  if (optionsById.size === 0) {
+    return null;
+  }
+  return {
+    descriptorId,
+    label: matchingDescriptors[0]?.label ?? "Reasoning",
+    options: [...optionsById.values()],
+  };
+}
+
+function getDefaultReasoningValue(
+  defaultModelOptions: ReadonlyArray<ProviderOptionSelection>,
+  descriptorId: string,
+): string {
+  const value = defaultModelOptions.find((selection) => selection.id === descriptorId)?.value;
+  return typeof value === "string" ? value : MODEL_DEFAULT_VALUE;
+}
+
+function updateDefaultReasoningSelection(input: {
+  readonly defaultModelOptions: ReadonlyArray<ProviderOptionSelection>;
+  readonly descriptorId: string;
+  readonly value: string;
+}): ReadonlyArray<ProviderOptionSelection> {
+  const cleaned = input.defaultModelOptions.filter(
+    (selection) =>
+      !REASONING_DESCRIPTOR_IDS.includes(selection.id as (typeof REASONING_DESCRIPTOR_IDS)[number]),
+  );
+  if (input.value === MODEL_DEFAULT_VALUE) {
+    return cleaned;
+  }
+  return [...cleaned, { id: input.descriptorId, value: input.value }];
 }
 
 /**
@@ -92,16 +183,19 @@ export function ProviderModelsSection({
   hiddenModels,
   favoriteModels,
   modelOrder,
+  defaultModelOptions,
   onChange,
   onHiddenModelsChange,
   onFavoriteModelsChange,
   onModelOrderChange,
+  onDefaultModelOptionsChange,
 }: ProviderModelsSectionProps) {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const hiddenModelSet = useMemo(() => new Set(hiddenModels), [hiddenModels]);
   const favoriteModelSet = useMemo(() => new Set(favoriteModels), [favoriteModels]);
+  const reasoningDefault = useMemo(() => deriveReasoningDefaultModel(models), [models]);
   const orderedModels = useMemo(() => {
     return sortModelsForProviderInstance(models, {
       favoriteModels: favoriteModelSet,
@@ -190,6 +284,55 @@ export function ProviderModelsSection({
       <div className="mt-1 text-xs text-muted-foreground">
         {models.length} model{models.length === 1 ? "" : "s"} available.
       </div>
+      {reasoningDefault ? (
+        <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-border/70 bg-muted/20 p-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-xs font-medium text-foreground">Default reasoning effort</div>
+            <div className="text-xs text-muted-foreground">
+              Used when a thread has no explicit {reasoningDefault.label.toLowerCase()} selection.
+            </div>
+          </div>
+          <Select
+            value={getDefaultReasoningValue(defaultModelOptions, reasoningDefault.descriptorId)}
+            onValueChange={(value) => {
+              if (!value) return;
+              onDefaultModelOptionsChange(
+                updateDefaultReasoningSelection({
+                  defaultModelOptions,
+                  descriptorId: reasoningDefault.descriptorId,
+                  value,
+                }),
+              );
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-40" aria-label="Default reasoning effort">
+              <SelectValue>
+                {getDefaultReasoningValue(defaultModelOptions, reasoningDefault.descriptorId) ===
+                MODEL_DEFAULT_VALUE
+                  ? "Model default"
+                  : (reasoningDefault.options.find(
+                      (option) =>
+                        option.id ===
+                        getDefaultReasoningValue(
+                          defaultModelOptions,
+                          reasoningDefault.descriptorId,
+                        ),
+                    )?.label ?? "Model default")}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectPopup align="end" alignItemWithTrigger={false}>
+              <SelectItem hideIndicator value={MODEL_DEFAULT_VALUE}>
+                Model default
+              </SelectItem>
+              {reasoningDefault.options.map((option) => (
+                <SelectItem hideIndicator key={option.id} value={option.id}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </div>
+      ) : null}
       <div ref={listRef} className="mt-2 max-h-40 overflow-y-auto pb-1">
         {orderedModels.map((model, index) => {
           const caps = model.capabilities;

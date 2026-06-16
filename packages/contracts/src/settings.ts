@@ -71,6 +71,7 @@ export const ClientSettingsSchema = Schema.Struct({
   providerModelPreferences: Schema.Record(
     ProviderInstanceId,
     Schema.Struct({
+      defaultOptions: Schema.optionalKey(ProviderOptionSelections),
       hiddenModels: Schema.Array(Schema.String).pipe(
         Schema.withDecodingDefault(Effect.succeed([])),
       ),
@@ -499,6 +500,7 @@ export const ClientSettingsPatch = Schema.Struct({
     Schema.Record(
       ProviderInstanceId,
       Schema.Struct({
+        defaultOptions: Schema.optionalKey(ProviderOptionSelections),
         hiddenModels: Schema.Array(Schema.String).pipe(
           Schema.withDecodingDefault(Effect.succeed([])),
         ),

@@ -5,6 +5,7 @@ import {
   type ModelSelection,
   ProviderDriverKind,
   ProviderInstanceId,
+  type ProviderOptionSelection,
   type ServerProvider,
 } from "@t3tools/contracts";
 import {
@@ -89,13 +90,28 @@ function toAppModelOption(model: ServerProvider["models"][number]): AppModelOpti
 function readInstanceModelPreferences(
   settings: UnifiedSettings,
   instanceId: ProviderInstanceId,
-): { readonly hiddenModels: ReadonlyArray<string>; readonly modelOrder: ReadonlyArray<string> } {
+): {
+  readonly defaultOptions?: ReadonlyArray<ProviderOptionSelection> | undefined;
+  readonly hiddenModels: ReadonlyArray<string>;
+  readonly modelOrder: ReadonlyArray<string>;
+} {
   return (
     settings.providerModelPreferences?.[instanceId] ?? {
       hiddenModels: [],
       modelOrder: [],
     }
   );
+}
+
+export function getProviderDefaultModelOptions(
+  settings: Pick<UnifiedSettings, "providerModelPreferences">,
+  instanceId: ProviderInstanceId | null | undefined,
+): ReadonlyArray<ProviderOptionSelection> | undefined {
+  if (!instanceId) {
+    return undefined;
+  }
+  const options = settings.providerModelPreferences?.[instanceId]?.defaultOptions;
+  return options && options.length > 0 ? options : undefined;
 }
 
 function applyInstanceModelPreferences(
@@ -295,12 +311,16 @@ export function resolveAppModelSelectionState(
       return createModelSelection(entry.instanceId, "", []);
     }
     const provider = entry.driverKind;
+    const modelOptions =
+      selectedEntry && selection.options && selection.options.length > 0
+        ? selection.options
+        : getProviderDefaultModelOptions(settings, entry.instanceId);
     const { modelOptionsForDispatch } = getComposerProviderState({
       provider,
       model,
       models: entry.models,
       prompt: "",
-      modelOptions: selectedEntry ? selection.options : undefined,
+      modelOptions,
     });
 
     return createModelSelection(entry.instanceId, model, modelOptionsForDispatch);
@@ -318,7 +338,10 @@ export function resolveAppModelSelectionState(
     model,
     models: getProviderModels(providers, provider),
     prompt: "",
-    modelOptions: keptSelectedProvider ? selection.options : undefined,
+    modelOptions: keptSelectedProvider
+      ? (selection.options ??
+        getProviderDefaultModelOptions(settings, defaultInstanceIdForDriver(provider)))
+      : getProviderDefaultModelOptions(settings, defaultInstanceIdForDriver(provider)),
   });
 
   return createModelSelection(defaultInstanceIdForDriver(provider), model, modelOptionsForDispatch);
