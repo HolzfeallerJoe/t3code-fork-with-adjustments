@@ -14,7 +14,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   sync:
@@ -126,79 +125,41 @@ jobs:
         run: |
           git push origin main
 
-      - name: Create issue on conflict
+      - name: Report conflict
         if: env.MERGE_CONFLICT == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const latestTag = '${{ steps.find_stable.outputs.latest_tag }}';
-            const title = `⚠️ Upstream Sync Failed - Manual Merge Required (${latestTag})`;
-            const body = `## Upstream Sync Conflict
-
-            The automatic sync with upstream stable release failed due to merge conflicts.
-
-            ### What happened
-            - Upstream repository: \`pingdotgg/t3code\`
-            - Attempted to merge: \`${latestTag}\` (stable release)
-            - Result: **Merge conflict detected**
-
-            ### Required action
-            Please resolve the conflicts manually:
-
-            \`\`\`bash
-            # Add upstream if not already added
-            git remote add upstream https://github.com/pingdotgg/t3code.git
-
-            # Fetch upstream tags
-            git fetch upstream --tags
-
-            # Merge the stable release tag
-            git merge ${latestTag}
-
-            # Resolve conflicts, then commit and push
-            git add .
-            git commit -m "Merge upstream stable release ${latestTag}"
-            git push origin main
-            \`\`\`
-
-            ### Workflow run
-            [View workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-
-            ---
-            *This issue was automatically created by the sync-upstream workflow.*`;
-
-            // Check if a similar issue already exists
-            const issues = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              labels: 'upstream-sync'
-            });
-
-            const existingIssue = issues.data.find(issue => 
-              issue.title.includes('Upstream Sync Failed')
-            );
-
-            if (existingIssue) {
-              // Update existing issue with a comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: existingIssue.number,
-                body: `🔄 Another sync attempt failed for \`${latestTag}\` at ${new Date().toISOString()}\n\n[View workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`
-              });
-            } else {
-              // Create new issue
-              await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: title,
-                body: body,
-                labels: ['upstream-sync', 'needs-attention']
-              });
-            }
+        run: |
+          LATEST_TAG="${{ steps.find_stable.outputs.latest_tag }}"
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          {
+            echo "## ⚠️ Upstream Sync Failed - Manual Merge Required ($LATEST_TAG)"
+            echo ""
+            echo "The automatic sync with upstream stable release failed due to merge conflicts."
+            echo ""
+            echo "### What happened"
+            echo "- Upstream repository: \`pingdotgg/t3code\`"
+            echo "- Attempted to merge: \`$LATEST_TAG\` (stable release)"
+            echo "- Result: **Merge conflict detected**"
+            echo ""
+            echo "### Required action"
+            echo "Resolve the conflicts manually:"
+            echo ""
+            echo '```bash'
+            echo "git remote add upstream https://github.com/pingdotgg/t3code.git"
+            echo "git fetch upstream --tags"
+            echo "git merge $LATEST_TAG"
+            echo "# resolve conflicts"
+            echo "git add ."
+            echo "git commit -m \"Merge upstream stable release $LATEST_TAG\""
+            echo "git push origin main"
+            echo '```'
+            echo ""
+            echo "[View workflow run]($RUN_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Upstream sync conflict for $LATEST_TAG - manual merge required. See run summary: $RUN_URL"
+          exit 1
 
       - name: Summary
+        if: always()
         run: |
           echo "## Sync Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -208,7 +169,7 @@ jobs:
             echo "✅ Fork is already synced to latest stable release (${{ steps.find_stable.outputs.latest_tag }})" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ env.MERGE_CONFLICT }}" == "true" ]; then
             echo "❌ Merge conflict detected for ${{ steps.find_stable.outputs.latest_tag }} - manual intervention required" >> $GITHUB_STEP_SUMMARY
-            echo "An issue has been created to track this." >> $GITHUB_STEP_SUMMARY
+            echo "See the conflict report above and the run logs for details." >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ Successfully synced to upstream stable release ${{ steps.find_stable.outputs.latest_tag }}" >> $GITHUB_STEP_SUMMARY
           fi
