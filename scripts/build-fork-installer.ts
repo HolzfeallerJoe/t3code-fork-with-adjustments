@@ -6,8 +6,8 @@
  * before invoking the standard desktop artifact build.
  *
  * Usage:
- *   bun run dist:fork              # Build for current platform
- *   bun run dist:fork -- --arch x64   # With additional flags
+ *   pnpm dist:fork              # Build for current platform
+ *   pnpm dist:fork --arch x64   # With additional flags
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
@@ -120,7 +120,7 @@ const buildForkInstaller = Effect.gen(function* () {
   const buildArgs = ["run", "dist:desktop:artifact", ...extraArgs];
 
   const child = yield* spawner.spawn(
-    ChildProcess.make("bun", buildArgs, {
+    ChildProcess.make("pnpm", buildArgs, {
       cwd: repoRoot,
       env: buildEnv,
       stdout: "inherit",

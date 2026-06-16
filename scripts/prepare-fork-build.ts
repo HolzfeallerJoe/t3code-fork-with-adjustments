@@ -5,7 +5,7 @@
  * Run this before building the desktop installer to enable fork update notifications.
  *
  * Usage:
- *   bun run prepare:fork-build
+ *   pnpm prepare:fork-build
  *
  * This will:
  *   1. Detect your fork repo from git remote origin
@@ -13,8 +13,8 @@
  *   3. Write a .env.fork file with the necessary variables
  *
  * Then build with:
- *   - Windows: set /p x=<.env.fork && bun run dist:desktop:win
- *   - Unix: export $(cat .env.fork | xargs) && bun run dist:desktop:dmg
+ *   - Windows: set /p x=<.env.fork && pnpm dist:desktop:win
+ *   - Unix: export $(cat .env.fork | xargs) && pnpm dist:desktop:dmg
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
@@ -138,16 +138,16 @@ const prepareForkBuild = Effect.gen(function* () {
   if (process.platform === "win32") {
     yield* Effect.log("  PowerShell:");
     yield* Effect.log(
-      `    Get-Content .env.fork | ForEach-Object { $k,$v = $_ -split '=',2; Set-Item "env:$k" $v }; bun run dist:desktop:win`,
+      `    Get-Content .env.fork | ForEach-Object { $k,$v = $_ -split '=',2; Set-Item "env:$k" $v }; pnpm dist:desktop:win`,
     );
     yield* Effect.log("");
     yield* Effect.log("  Or set variables manually:");
     yield* Effect.log(`    $env:T3CODE_FORK_MODE="1"`);
     yield* Effect.log(`    $env:T3CODE_FORK_REPO="${forkRepo}"`);
     yield* Effect.log(`    $env:T3CODE_COMMIT_HASH="${commitHash}"`);
-    yield* Effect.log(`    bun run dist:desktop:win`);
+    yield* Effect.log(`    pnpm dist:desktop:win`);
   } else {
-    yield* Effect.log("  export $(cat .env.fork | xargs) && bun run dist:desktop:dmg");
+    yield* Effect.log("  export $(cat .env.fork | xargs) && pnpm dist:desktop:dmg");
   }
 });
 
