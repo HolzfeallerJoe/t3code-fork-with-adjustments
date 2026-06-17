@@ -30,6 +30,7 @@ export interface AccountRateLimitsSnapshot {
 interface RateLimitDeriveOptions {
   readonly providerInstanceId?: ProviderInstanceId | string | null;
   readonly provider?: ProviderDriverKind | string | null;
+  readonly now?: number;
 }
 
 interface ParsedRateLimitSnapshot {
@@ -41,8 +42,6 @@ interface ParsedRateLimitSnapshot {
   readonly planType: string | null;
   readonly reachedType: string | null;
 }
-
-const EMPTY_ACTIVITIES: readonly OrchestrationThreadActivity[] = [];
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
@@ -293,6 +292,10 @@ function windowIdentityKey(window: UsageLimitWindowSnapshot): string {
   return `${window.label ?? "limit"}:${window.windowDurationMins ?? "unknown"}`;
 }
 
+function isWindowExpired(window: UsageLimitWindowSnapshot, now: number): boolean {
+  return window.resetsAt !== null && window.resetsAt <= now;
+}
+
 function toSnapshot(parsed: ParsedRateLimitSnapshot, updatedAt: string): AccountRateLimitsSnapshot {
   const windowsByKey = new Map<string, UsageLimitWindowSnapshot>();
   for (const window of parsed.windows) {
@@ -321,6 +324,7 @@ export function deriveLatestAccountRateLimitsSnapshot(
   let latestParsed: ParsedRateLimitSnapshot | null = null;
   let latestUpdatedAt: string | null = null;
   const seenWindowKeys = new Set<string>();
+  const now = options?.now ?? Date.now();
 
   for (let index = activities.length - 1; index >= 0; index -= 1) {
     const activity = activities[index];
@@ -333,8 +337,13 @@ export function deriveLatestAccountRateLimitsSnapshot(
       continue;
     }
 
+    // Claude only emits a rate_limit_event when state changes, so a window we saw
+    // at 95% an hour ago will still be reported as 95% long after its reset has
+    // passed. Drop windows whose reset is in the past so the chip strip reflects
+    // the current limit, not a frozen pre-reset snapshot.
     const unseenWindows = parsed.windows.filter(
-      (window) => !seenWindowKeys.has(windowIdentityKey(window)),
+      (window) =>
+        !seenWindowKeys.has(windowIdentityKey(window)) && !isWindowExpired(window, now),
     );
     if (unseenWindows.length === 0) {
       continue;
@@ -350,49 +359,42 @@ export function deriveLatestAccountRateLimitsSnapshot(
   return latestParsed && latestUpdatedAt ? toSnapshot(latestParsed, latestUpdatedAt) : null;
 }
 
-function compareSnapshotUpdatedAt(
-  left: AccountRateLimitsSnapshot | null,
-  right: AccountRateLimitsSnapshot | null,
-): AccountRateLimitsSnapshot | null {
-  if (!left) {
-    return right;
-  }
-  if (!right) {
-    return left;
-  }
-  const leftTime = Date.parse(left.updatedAt);
-  const rightTime = Date.parse(right.updatedAt);
-  return Number.isFinite(rightTime) && (!Number.isFinite(leftTime) || rightTime > leftTime)
-    ? right
-    : left;
-}
-
 export function deriveLatestAccountRateLimitsSnapshotFromState(
   state: AppState,
   options?: RateLimitDeriveOptions,
 ): AccountRateLimitsSnapshot | null {
-  let latest: AccountRateLimitsSnapshot | null = null;
-
+  // Claude emits one window per rate_limit_event and only when state changes,
+  // so the latest report for the 5h window may live in one thread while the
+  // latest for the 7d window lives in another. Picking a single thread's
+  // snapshot drops the others. Collect every rate-limit activity across the
+  // environment, sort chronologically, and let the deriver merge window keys
+  // across the combined timeline.
+  const rateLimitActivities: OrchestrationThreadActivity[] = [];
   for (const environmentState of Object.values(state.environmentStateById)) {
     for (const [threadId, activityIds] of Object.entries(
       environmentState.activityIdsByThreadId,
     ) as Array<[ThreadId, string[]]>) {
       const activityById = environmentState.activityByThreadId[threadId] ?? {};
-      const activities =
-        activityIds.length > 0
-          ? activityIds.flatMap((activityId) => {
-              const activity = activityById[activityId];
-              return activity ? [activity] : [];
-            })
-          : EMPTY_ACTIVITIES;
-      latest = compareSnapshotUpdatedAt(
-        latest,
-        deriveLatestAccountRateLimitsSnapshot(activities, options),
-      );
+      for (const activityId of activityIds) {
+        const activity = activityById[activityId];
+        if (activity && activity.kind === "account-rate-limits.updated") {
+          rateLimitActivities.push(activity);
+        }
+      }
     }
   }
-
-  return latest;
+  if (rateLimitActivities.length === 0) {
+    return null;
+  }
+  rateLimitActivities.sort((a, b) => {
+    const left = Date.parse(a.createdAt);
+    const right = Date.parse(b.createdAt);
+    if (Number.isFinite(left) && Number.isFinite(right) && left !== right) {
+      return left - right;
+    }
+    return 0;
+  });
+  return deriveLatestAccountRateLimitsSnapshot(rateLimitActivities, options);
 }
 
 export function formatUsageLimitPercent(

@@ -160,7 +160,7 @@ describe("usageLimits", () => {
     expect(formatUsageLimitTooltipValue(window, "used")).toBe("100% used");
   });
 
-  it("derives the latest rate limits across loaded thread activity state", () => {
+  it("merges rate-limit windows reported across multiple threads", () => {
     const older = makeActivity("activity-1", "account-rate-limits.updated", {
       rateLimits: {
         primary: {
@@ -214,7 +214,10 @@ describe("usageLimits", () => {
       },
     });
 
-    expect(snapshot?.windows[0]?.usedPercent).toBe(55);
+    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
+      ["5h", 55],
+      ["1h", 12],
+    ]);
     expect(formatUsageWindowLabel(snapshot?.windows[0] ?? null)).toBe("5h");
   });
 
@@ -281,6 +284,77 @@ describe("usageLimits", () => {
 
     expect(snapshot?.provider).toBe("claudeAgent");
     expect(snapshot?.windows[0]?.usedPercent).toBe(66);
+  });
+
+  it("drops windows whose reset has already passed", () => {
+    const now = Date.UTC(2026, 5, 17, 12, 0, 0);
+    const nowSeconds = Math.floor(now / 1000);
+
+    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+      [
+        makeActivity("activity-1", "account-rate-limits.updated", {
+          provider: "codex",
+          rateLimits: {
+            primary: {
+              usedPercent: 95,
+              windowDurationMins: 60,
+              resetsAt: nowSeconds - 3600,
+            },
+            secondary: {
+              usedPercent: 30,
+              windowDurationMins: 10_080,
+              resetsAt: nowSeconds + 3600,
+            },
+          },
+        }),
+      ],
+      { now },
+    );
+
+    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
+      ["7d", 30],
+    ]);
+  });
+
+  it("falls back to an older non-expired window when the newest is expired", () => {
+    const now = Date.UTC(2026, 5, 17, 12, 0, 0);
+    const nowSeconds = Math.floor(now / 1000);
+
+    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+      [
+        makeActivity("activity-old", "account-rate-limits.updated", {
+          provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
+          rateLimits: {
+            type: "rate_limit_event",
+            rate_limit_info: {
+              status: "allowed",
+              rateLimitType: "seven_day_opus",
+              utilization: 0.5,
+              resetsAt: nowSeconds + 86_400,
+            },
+          },
+        }),
+        makeActivity("activity-new", "account-rate-limits.updated", {
+          provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
+          rateLimits: {
+            type: "rate_limit_event",
+            rate_limit_info: {
+              status: "allowed_warning",
+              rateLimitType: "five_hour",
+              utilization: 0.95,
+              resetsAt: nowSeconds - 60,
+            },
+          },
+        }),
+      ],
+      { now },
+    );
+
+    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
+      ["7d Opus", 50],
+    ]);
   });
 
   it("does not use unknown-provider limits when filtering to a selected provider", () => {
