@@ -93,33 +93,36 @@ describe("usageLimits", () => {
   });
 
   it("handles Claude rate limit events without OpenAI-shaped windows", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot([
-      makeActivity("activity-1", "account-rate-limits.updated", {
-        provider: "claudeAgent",
-        providerInstanceId: "claudeAgent",
-        rateLimits: {
-          type: "rate_limit_event",
-          rate_limit_info: {
-            status: "allowed_warning",
-            rateLimitType: "five_hour",
-            utilization: 0.37,
-            resetsAt: 1_775_000_000,
+    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+      [
+        makeActivity("activity-1", "account-rate-limits.updated", {
+          provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
+          rateLimits: {
+            type: "rate_limit_event",
+            rate_limit_info: {
+              status: "allowed_warning",
+              rateLimitType: "five_hour",
+              utilization: 0.37,
+              resetsAt: 1_775_000_000,
+            },
           },
-        },
-      }),
-      makeActivity("activity-2", "account-rate-limits.updated", {
-        provider: "claudeAgent",
-        providerInstanceId: "claudeAgent",
-        rateLimits: {
-          type: "rate_limit_event",
-          rate_limit_info: {
-            status: "allowed",
-            rateLimitType: "seven_day_opus",
-            utilization: 42,
+        }),
+        makeActivity("activity-2", "account-rate-limits.updated", {
+          provider: "claudeAgent",
+          providerInstanceId: "claudeAgent",
+          rateLimits: {
+            type: "rate_limit_event",
+            rate_limit_info: {
+              status: "allowed",
+              rateLimitType: "seven_day_opus",
+              utilization: 42,
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ],
+      { now: 1_774_000_000_000 },
+    );
 
     expect(snapshot?.provider).toBe("claudeAgent");
     expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
@@ -138,18 +141,21 @@ describe("usageLimits", () => {
   });
 
   it("formats limit chips as remaining or used percentages", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot([
-      makeActivity("activity-1", "account-rate-limits.updated", {
-        provider: "codex",
-        rateLimits: {
-          primary: {
-            usedPercent: 100,
-            windowDurationMins: 300,
-            resetsAt: 1_775_000_000,
+    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+      [
+        makeActivity("activity-1", "account-rate-limits.updated", {
+          provider: "codex",
+          rateLimits: {
+            primary: {
+              usedPercent: 100,
+              windowDurationMins: 300,
+              resetsAt: 1_775_000_000,
+            },
           },
-        },
-      }),
-    ]);
+        }),
+      ],
+      { now: 1_774_000_000_000 },
+    );
     const window = snapshot?.windows[0] ?? null;
 
     expect(isUsageLimitWindowExhausted(window)).toBe(true);

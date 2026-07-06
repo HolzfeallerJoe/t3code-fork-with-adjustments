@@ -1,12 +1,13 @@
-import { spawn } from "node:child_process";
+import * as NodeChildProcess from "node:child_process";
 
-import { desktopDir, resolveElectronPath } from "./electron-launcher.mjs";
+import { desktopDir, resolveElectronLaunchCommand } from "./electron-launcher.mjs";
 
 const childEnv = { ...process.env };
 childEnv.T3CODE_DISABLE_AUTO_UPDATE ??= "1";
 delete childEnv.ELECTRON_RUN_AS_NODE;
 
-const child = spawn(resolveElectronPath(), ["dist-electron/main.cjs"], {
+const electronCommand = resolveElectronLaunchCommand(["dist-electron/main.cjs"]);
+const child = NodeChildProcess.spawn(electronCommand.electronPath, electronCommand.args, {
   stdio: "inherit",
   cwd: desktopDir,
   env: childEnv,

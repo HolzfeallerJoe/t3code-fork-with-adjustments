@@ -323,7 +323,6 @@ export function resolveAppModelSelectionState(
       provider,
       model,
       models: entry.models,
-      prompt: "",
       modelOptions,
     });
 
@@ -341,7 +340,6 @@ export function resolveAppModelSelectionState(
     provider,
     model,
     models: getProviderModels(providers, provider),
-    prompt: "",
     modelOptions: keptSelectedProvider
       ? (selection.options ??
         getProviderDefaultModelOptions(settings, defaultInstanceIdForDriver(provider)))

@@ -5,7 +5,17 @@ import type {
   ThreadId,
 } from "@t3tools/contracts";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
-import type { AppState } from "../store";
+
+interface RateLimitActivityEnvironmentState {
+  readonly activityIdsByThreadId: Record<string, readonly string[]>;
+  readonly activityByThreadId: Record<string, Record<string, OrchestrationThreadActivity>>;
+  readonly [key: string]: unknown;
+}
+
+interface RateLimitActivityState {
+  readonly environmentStateById: Record<string, RateLimitActivityEnvironmentState>;
+  readonly [key: string]: unknown;
+}
 
 export interface UsageLimitWindowSnapshot {
   readonly key: string;
@@ -360,7 +370,7 @@ export function deriveLatestAccountRateLimitsSnapshot(
 }
 
 export function deriveLatestAccountRateLimitsSnapshotFromState(
-  state: AppState,
+  state: RateLimitActivityState,
   options?: RateLimitDeriveOptions,
 ): AccountRateLimitsSnapshot | null {
   // Claude emits one window per rate_limit_event and only when state changes,
@@ -371,9 +381,7 @@ export function deriveLatestAccountRateLimitsSnapshotFromState(
   // across the combined timeline.
   const rateLimitActivities: OrchestrationThreadActivity[] = [];
   for (const environmentState of Object.values(state.environmentStateById)) {
-    for (const [threadId, activityIds] of Object.entries(
-      environmentState.activityIdsByThreadId,
-    ) as Array<[ThreadId, string[]]>) {
+    for (const [threadId, activityIds] of Object.entries(environmentState.activityIdsByThreadId)) {
       const activityById = environmentState.activityByThreadId[threadId] ?? {};
       for (const activityId of activityIds) {
         const activity = activityById[activityId];

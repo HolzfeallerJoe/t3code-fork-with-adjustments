@@ -9,6 +9,9 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
+import * as HttpClient from "effect/unstable/http/HttpClient";
+import * as HttpClientRequest from "effect/unstable/http/HttpClientRequest";
+import * as HttpClientResponse from "effect/unstable/http/HttpClientResponse";
 
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopObservability from "../app/DesktopObservability.ts";
@@ -43,9 +46,6 @@ const GitHubIssueResponse = Schema.Array(
   }),
 );
 
-const decodeGitHubCommit = Schema.decodeUnknownEffect(GitHubCommitResponse);
-const decodeGitHubIssues = Schema.decodeUnknownEffect(GitHubIssueResponse);
-
 const currentIsoTimestamp = DateTime.now.pipe(Effect.map(DateTime.formatIso));
 
 export interface ForkUpdateCheckerShape {
@@ -56,7 +56,7 @@ export interface ForkUpdateCheckerShape {
 }
 
 export class ForkUpdateChecker extends Context.Service<ForkUpdateChecker, ForkUpdateCheckerShape>()(
-  "t3/desktop/ForkUpdateChecker",
+  "@t3tools/desktop/updates/ForkUpdateChecker",
 ) {}
 
 const {
@@ -144,6 +144,7 @@ function reduceStateOnCheckFailure(
 const make = Effect.gen(function* () {
   const config = yield* DesktopConfig.DesktopConfig;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
+  const httpClient = yield* HttpClient.HttpClient;
 
   const forkRepo = config.forkRepo;
   const forkModeEnabled = config.forkMode && Option.isSome(forkRepo);
@@ -163,48 +164,43 @@ const make = Effect.gen(function* () {
   const setState = (state: ForkUpdateState): Effect.Effect<void> =>
     Ref.set(updateStateRef, state).pipe(Effect.andThen(emitState));
 
+  const githubRequest = (url: string) =>
+    HttpClientRequest.get(url).pipe(
+      HttpClientRequest.acceptJson,
+      HttpClientRequest.setHeader("user-agent", "T3Code-ForkUpdateChecker"),
+    );
+
   const fetchLatestCommit = (repo: string) =>
-    Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(`https://api.github.com/repos/${repo}/commits/main`, {
-          headers: {
-            Accept: "application/vnd.github.v3+json",
-            "User-Agent": "T3Code-ForkUpdateChecker",
-          },
-        });
-        if (!response.ok) {
-          throw new ForkUpdateFetchError({
-            message: `GitHub API returned ${response.status}: ${response.statusText}`,
-          });
-        }
-        return response.json();
-      },
-      catch: (error) =>
-        new ForkUpdateFetchError({
-          message: error instanceof ForkUpdateFetchError ? error.message : String(error),
+    httpClient.execute(githubRequest(`https://api.github.com/repos/${repo}/commits/main`)).pipe(
+      Effect.flatMap(
+        HttpClientResponse.matchStatus({
+          "2xx": HttpClientResponse.schemaBodyJson(GitHubCommitResponse),
+          orElse: (response) =>
+            new ForkUpdateFetchError({
+              message: `GitHub API returned ${response.status}`,
+            }),
         }),
-    }).pipe(Effect.flatMap(decodeGitHubCommit));
+      ),
+      Effect.mapError(
+        (error) =>
+          new ForkUpdateFetchError({
+            message: error instanceof ForkUpdateFetchError ? error.message : String(error),
+          }),
+      ),
+    );
 
   const fetchSyncConflictIssue = (repo: string) =>
-    Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(
-          `https://api.github.com/repos/${repo}/issues?labels=upstream-sync&state=open`,
-          {
-            headers: {
-              Accept: "application/vnd.github.v3+json",
-              "User-Agent": "T3Code-ForkUpdateChecker",
-            },
-          },
-        );
-        if (!response.ok) {
-          return [];
-        }
-        return response.json();
-      },
-      catch: () => [] as unknown[],
-    }).pipe(
-      Effect.flatMap(decodeGitHubIssues),
+    httpClient
+      .execute(
+        githubRequest(`https://api.github.com/repos/${repo}/issues?labels=upstream-sync&state=open`),
+      )
+      .pipe(
+        Effect.flatMap(
+          HttpClientResponse.matchStatus({
+            "2xx": HttpClientResponse.schemaBodyJson(GitHubIssueResponse),
+            orElse: () => Effect.succeed([]),
+          }),
+        ),
       Effect.map((issues) => {
         const conflictIssue = issues.find(
           (issue) => issue.title.includes("Upstream Sync Failed") && issue.state === "open",

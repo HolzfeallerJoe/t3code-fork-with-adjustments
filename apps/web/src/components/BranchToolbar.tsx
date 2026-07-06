@@ -1,4 +1,4 @@
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, OrchestrationThreadActivity, ThreadId } from "@t3tools/contracts";
 import {
   ChevronDownIcon,
@@ -16,11 +16,10 @@ import {
   type DraftId,
 } from "../composerDraftStore";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import { useSettings } from "../hooks/useSettings";
+import { usePrimarySettings } from "../hooks/useSettings";
 import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
-import { deriveLatestAccountRateLimitsSnapshotFromState } from "../lib/usageLimits";
-import { type AppState, useStore } from "../store";
-import { createProjectSelectorByRef, createThreadSelectorByRef } from "../storeSelectors";
+import { deriveLatestAccountRateLimitsSnapshot } from "../lib/usageLimits";
+import { useAllThreadActivities, useProject, useThread } from "../state/entities";
 import {
   type EnvMode,
   type EnvironmentOption,
@@ -56,6 +55,8 @@ interface BranchToolbarProps {
   effectiveEnvModeOverride?: EnvMode;
   activeThreadBranchOverride?: string | null;
   onActiveThreadBranchOverrideChange?: (branch: string | null) => void;
+  startFromOrigin: boolean;
+  onStartFromOriginChange: (startFromOrigin: boolean) => void;
   envLocked: boolean;
   onCheckoutPullRequestRequest?: (reference: string) => void;
   onComposerFocusRequest?: () => void;
@@ -207,6 +208,8 @@ export const BranchToolbar = memo(function BranchToolbar({
   effectiveEnvModeOverride,
   activeThreadBranchOverride,
   onActiveThreadBranchOverrideChange,
+  startFromOrigin,
+  onStartFromOriginChange,
   envLocked,
   onCheckoutPullRequestRequest,
   onComposerFocusRequest,
@@ -217,8 +220,7 @@ export const BranchToolbar = memo(function BranchToolbar({
     () => scopeThreadRef(environmentId, threadId),
     [environmentId, threadId],
   );
-  const serverThreadSelector = useMemo(() => createThreadSelectorByRef(threadRef), [threadRef]);
-  const serverThread = useStore(serverThreadSelector);
+  const serverThread = useThread(threadRef);
   const composerDraftTarget = draftId ?? threadRef;
   const composerModelState = useComposerDraftModelState(composerDraftTarget);
   const draftThread = useComposerDraftStore((store) =>
@@ -229,57 +231,45 @@ export const BranchToolbar = memo(function BranchToolbar({
     : draftThread
       ? scopeProjectRef(draftThread.environmentId, draftThread.projectId)
       : null;
-  const activeProjectSelector = useMemo(
-    () => createProjectSelectorByRef(activeProjectRef),
-    [activeProjectRef],
-  );
-  const activeProject = useStore(activeProjectSelector);
-  const hasActiveThread = serverThread !== undefined || draftThread !== null;
+  const activeProject = useProject(activeProjectRef);
+  const hasActiveThread = serverThread !== null || draftThread !== null;
   const activeWorktreePath = serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
   const effectiveEnvMode =
     effectiveEnvModeOverride ??
     resolveEffectiveEnvMode({
       activeWorktreePath,
-      hasServerThread: serverThread !== undefined,
+      hasServerThread: serverThread !== null,
       draftThreadEnvMode: draftThread?.envMode,
     });
-  const envModeLocked = envLocked || (serverThread !== undefined && activeWorktreePath !== null);
+  const envModeLocked = envLocked || (serverThread !== null && activeWorktreePath !== null);
 
   const showEnvironmentPicker = Boolean(
     availableEnvironments && availableEnvironments.length > 1 && onEnvironmentChange,
   );
   const isMobile = useIsMobile();
-  const usageLimitDisplayMode = useSettings((settings) => settings.usageLimitDisplayMode);
+  const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
+  const allThreadActivities = useAllThreadActivities();
   const threadActivities = serverThread?.activities;
   const activeContextWindow = useMemo(
     () => deriveLatestContextWindowSnapshot(threadActivities ?? EMPTY_THREAD_ACTIVITIES),
     [threadActivities],
   );
-  const activeEnvironmentId = useStore((state) => state.activeEnvironmentId);
-  const environmentStateById = useStore((state) => state.environmentStateById);
   const activeRateLimits = useMemo(() => {
     const providerInstanceId =
       composerModelState.activeProvider ??
       serverThread?.session?.providerInstanceId ??
       serverThread?.modelSelection.instanceId ??
       null;
-    const provider = composerModelState.activeProvider ?? serverThread?.session?.provider ?? null;
-    return deriveLatestAccountRateLimitsSnapshotFromState(
-      {
-        activeEnvironmentId,
-        environmentStateById,
-      } satisfies AppState,
-      {
-        provider,
-        providerInstanceId,
-      },
-    );
+    const provider =
+      composerModelState.activeProvider ?? serverThread?.session?.providerInstanceId ?? null;
+    return deriveLatestAccountRateLimitsSnapshot(allThreadActivities, {
+      provider,
+      providerInstanceId,
+    });
   }, [
-    activeEnvironmentId,
+    allThreadActivities,
     composerModelState.activeProvider,
-    environmentStateById,
     serverThread?.modelSelection.instanceId,
-    serverThread?.session?.provider,
     serverThread?.session?.providerInstanceId,
   ]);
 
@@ -331,6 +321,8 @@ export const BranchToolbar = memo(function BranchToolbar({
           {...(effectiveEnvModeOverride ? { effectiveEnvModeOverride } : {})}
           {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
           {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
+          startFromOrigin={startFromOrigin}
+          onStartFromOriginChange={onStartFromOriginChange}
           {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
         />

@@ -12,9 +12,9 @@ import * as Schema from "effect/Schema";
 import * as DesktopUpdates from "../../updates/DesktopUpdates.ts";
 import * as ForkUpdateChecker from "../../updates/ForkUpdateChecker.ts";
 import * as IpcChannels from "../channels.ts";
-import { makeIpcMethod } from "../DesktopIpc.ts";
+import * as DesktopIpc from "../DesktopIpc.ts";
 
-export const getUpdateState = makeIpcMethod({
+export const getUpdateState = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.UPDATE_GET_STATE_CHANNEL,
   payload: Schema.Void,
   result: DesktopUpdateStateSchema,
@@ -24,7 +24,7 @@ export const getUpdateState = makeIpcMethod({
   }),
 });
 
-export const setUpdateChannel = makeIpcMethod({
+export const setUpdateChannel = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.UPDATE_SET_CHANNEL_CHANNEL,
   payload: DesktopUpdateChannelSchema,
   result: DesktopUpdateStateSchema,
@@ -34,7 +34,7 @@ export const setUpdateChannel = makeIpcMethod({
   }),
 });
 
-export const downloadUpdate = makeIpcMethod({
+export const downloadUpdate = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.UPDATE_DOWNLOAD_CHANNEL,
   payload: Schema.Void,
   result: DesktopUpdateActionResultSchema,
@@ -44,7 +44,7 @@ export const downloadUpdate = makeIpcMethod({
   }),
 });
 
-export const installUpdate = makeIpcMethod({
+export const installUpdate = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.UPDATE_INSTALL_CHANNEL,
   payload: Schema.Void,
   result: DesktopUpdateActionResultSchema,
@@ -54,7 +54,7 @@ export const installUpdate = makeIpcMethod({
   }),
 });
 
-export const checkForUpdate = makeIpcMethod({
+export const checkForUpdate = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.UPDATE_CHECK_CHANNEL,
   payload: Schema.Void,
   result: DesktopUpdateCheckResultSchema,
@@ -64,7 +64,7 @@ export const checkForUpdate = makeIpcMethod({
   }),
 });
 
-export const getForkUpdateState = makeIpcMethod({
+export const getForkUpdateState = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.FORK_UPDATE_GET_STATE_CHANNEL,
   payload: Schema.Void,
   result: ForkUpdateStateSchema,
@@ -74,7 +74,7 @@ export const getForkUpdateState = makeIpcMethod({
   }),
 });
 
-export const checkForForkUpdate = makeIpcMethod({
+export const checkForForkUpdate = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.FORK_UPDATE_CHECK_CHANNEL,
   payload: Schema.Void,
   result: ForkUpdateCheckResultSchema,
