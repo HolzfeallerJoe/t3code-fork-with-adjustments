@@ -1,5 +1,4 @@
-import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
-import type { FileDiffMetadata } from "@pierre/diffs/types";
+import { parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs";
 
 export const DIFF_THEME_NAMES = {
   light: "pierre-light",
@@ -51,6 +50,25 @@ export type RenderablePatch =
       text: string;
       reason: string;
     };
+
+export interface DiffLineStat {
+  additions: number;
+  deletions: number;
+}
+
+export function getDiffLineStat(files: ReadonlyArray<FileDiffMetadata>): DiffLineStat {
+  return files.reduce<DiffLineStat>(
+    (total, file) => {
+      for (const hunk of file.hunks) {
+        total.additions += hunk.additionLines;
+        total.deletions += hunk.deletionLines;
+      }
+
+      return total;
+    },
+    { additions: 0, deletions: 0 },
+  );
+}
 
 interface RenderablePatchOptions {
   /**

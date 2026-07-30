@@ -1,7 +1,7 @@
 import { AlertTriangleIcon, ExternalLinkIcon, GitForkIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { isElectron } from "../../env";
-import { useForkUpdateState } from "../../lib/forkUpdateReactQuery";
+import { useForkUpdateState } from "../../state/forkUpdate";
 import {
   getForkUpdateNotificationMessage,
   getForkUpdateNotificationTitle,
@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 export function SidebarForkUpdatePill() {
-  const state = useForkUpdateState().data ?? null;
+  const state = useForkUpdateState();
   const [dismissed, setDismissed] = useState(false);
 
   const visible = isElectron && shouldShowForkUpdateNotification(state) && !dismissed;
