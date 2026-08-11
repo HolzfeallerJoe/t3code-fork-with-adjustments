@@ -23,7 +23,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          # Use PAT if available (required for pushing workflow file changes), otherwise GITHUB_TOKEN
+          # SYNC_PAT holds the fine-grained PAT named "ForkUpdater" (Contents + Workflows:
+          # read & write). A PAT is required because GITHUB_TOKEN cannot push upstream
+          # commits that touch .github/workflows/**. See FORK.md.
           token: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Configure git
