@@ -19,6 +19,7 @@
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { isHostWindows } from "@t3tools/shared/hostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -135,7 +136,7 @@ const prepareForkBuild = Effect.gen(function* () {
   yield* Effect.log("To build with fork update support:");
   yield* Effect.log("");
 
-  if (process.platform === "win32") {
+  if (yield* isHostWindows) {
     yield* Effect.log("  PowerShell:");
     yield* Effect.log(
       `    Get-Content .env.fork | ForEach-Object { $k,$v = $_ -split '=',2; Set-Item "env:$k" $v }; pnpm dist:desktop:win`,

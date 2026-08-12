@@ -1064,7 +1064,7 @@ export function deriveEffectiveComposerModelState(input: {
   const modelOptionsWithDefaults =
     defaultModelOptions && !modelOptions?.[selectedInstanceId]
       ? {
-          ...(modelOptions ?? {}),
+          ...modelOptions,
           [selectedInstanceId]: defaultModelOptions,
         }
       : modelOptions;

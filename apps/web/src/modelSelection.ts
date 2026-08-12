@@ -319,8 +319,15 @@ export function resolveAppModelSelectionState(
       return createModelSelection(entry.instanceId, "", []);
     }
     const provider = entry.driverKind;
+    // Upstream ships a populated default `textGenerationModelSelection`, so a
+    // non-empty `options` no longer proves the user picked them. Only carry the
+    // stored options when they belong to the model we actually resolved to;
+    // otherwise the instance's configured defaults seed the selection.
     const modelOptions =
-      selectedEntry && selection.options && selection.options.length > 0
+      selectedEntry &&
+      selection.model === model &&
+      selection.options &&
+      selection.options.length > 0
         ? selection.options
         : getProviderDefaultModelOptions(settings, entry.instanceId);
     const { modelOptionsForDispatch } = getComposerProviderState({

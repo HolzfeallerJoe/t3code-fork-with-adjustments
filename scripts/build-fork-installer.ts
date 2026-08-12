@@ -12,6 +12,7 @@
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { isHostWindows } from "@t3tools/shared/hostProcess";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -118,6 +119,7 @@ const buildForkInstaller = Effect.gen(function* () {
 
   const extraArgs = process.argv.slice(2);
   const buildArgs = ["run", "dist:desktop:artifact", ...extraArgs];
+  const useShell = yield* isHostWindows;
 
   const child = yield* spawner.spawn(
     ChildProcess.make("pnpm", buildArgs, {
@@ -125,7 +127,7 @@ const buildForkInstaller = Effect.gen(function* () {
       env: buildEnv,
       stdout: "inherit",
       stderr: "inherit",
-      shell: process.platform === "win32",
+      shell: useShell,
     }),
   );
 

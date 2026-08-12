@@ -2471,7 +2471,7 @@ describe("ProviderRuntimeIngestion", () => {
   });
 
   it("keeps reused ACP assistant segment ids separate across turns", async () => {
-    const harness = await createHarness({ serverSettings: { enableAssistantStreaming: true } });
+    const harness = await createHarness({ serverSettings: { enableLegacyTokenStreaming: true } });
     const firstAt = "2026-01-01T00:00:00.000Z";
     const secondAt = "2026-01-01T00:01:00.000Z";
     const reusedItemId = asItemId("assistant:mock-session:segment:0");

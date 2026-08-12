@@ -192,7 +192,9 @@ const make = Effect.gen(function* () {
   const fetchSyncConflictIssue = (repo: string) =>
     httpClient
       .execute(
-        githubRequest(`https://api.github.com/repos/${repo}/issues?labels=upstream-sync&state=open`),
+        githubRequest(
+          `https://api.github.com/repos/${repo}/issues?labels=upstream-sync&state=open`,
+        ),
       )
       .pipe(
         Effect.flatMap(
@@ -201,14 +203,14 @@ const make = Effect.gen(function* () {
             orElse: () => Effect.succeed([]),
           }),
         ),
-      Effect.map((issues) => {
-        const conflictIssue = issues.find(
-          (issue) => issue.title.includes("Upstream Sync Failed") && issue.state === "open",
-        );
-        return conflictIssue?.html_url ?? null;
-      }),
-      Effect.catch(() => Effect.succeed(null)),
-    );
+        Effect.map((issues) => {
+          const conflictIssue = issues.find(
+            (issue) => issue.title.includes("Upstream Sync Failed") && issue.state === "open",
+          );
+          return conflictIssue?.html_url ?? null;
+        }),
+        Effect.catch(() => Effect.succeed(null)),
+      );
 
   const checkForForkUpdates = Effect.fn("desktop.forkUpdates.check")(function* (reason: string) {
     yield* Effect.annotateCurrentSpan({ reason });

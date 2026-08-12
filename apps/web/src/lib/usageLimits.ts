@@ -2,7 +2,6 @@ import type {
   OrchestrationThreadActivity,
   ProviderDriverKind,
   ProviderInstanceId,
-  ThreadId,
 } from "@t3tools/contracts";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
 
@@ -352,8 +351,7 @@ export function deriveLatestAccountRateLimitsSnapshot(
     // passed. Drop windows whose reset is in the past so the chip strip reflects
     // the current limit, not a frozen pre-reset snapshot.
     const unseenWindows = parsed.windows.filter(
-      (window) =>
-        !seenWindowKeys.has(windowIdentityKey(window)) && !isWindowExpired(window, now),
+      (window) => !seenWindowKeys.has(windowIdentityKey(window)) && !isWindowExpired(window, now),
     );
     if (unseenWindows.length === 0) {
       continue;
