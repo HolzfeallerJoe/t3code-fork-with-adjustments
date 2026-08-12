@@ -5,7 +5,7 @@ description: Merge an upstream pingdotgg/t3code stable release into this fork's 
 
 # Merge upstream into the fork
 
-This repository is a fork of `pingdotgg/t3code` (remote `upstream`) with its own long-lived features. `.github/workflows/sync-upstream.yml` merges the newest upstream **stable** tag (`vX.Y.Z`, no `-nightly`/`-beta` suffix) into `main` daily. It aborts and fails the run whenever anything other than `.github/workflows/release.yml` conflicts. This skill is the manual path that takes over from there.
+This repository is a fork of `pingdotgg/t3code` (remote `upstream`) with its own long-lived features. `.github/workflows/sync-upstream.yml` merges the newest upstream **stable** tag (`vX.Y.Z`, no `-nightly`/`-beta` suffix) into `main` daily. It aborts and fails the run whenever a path outside its `IGNORE_PATHS` allowlist (the workflows the fork deletes) conflicts. This skill is the manual path that takes over from there.
 
 The goal is never "make the merge succeed". It is: **land the upstream release with every fork behavior still working**, changing fork code only where upstream forced it, and removing fork code only where upstream now does the same job.
 
@@ -51,7 +51,7 @@ As of `v0.0.31`, the fork owns these features. Files move; the intent is what mu
 | Usage / rate-limit display                                              | `apps/web/src/lib/usageLimits.ts` (+`.test.ts`), `apps/web/src/components/UsageLimitStrip.tsx`, `BranchToolbar.tsx`, `apps/web/src/state/entities.ts`, `apps/server/src/orchestration/Layers/{ProjectionPipeline.ts,ProviderRuntimeIngestion.ts}` (+tests)                                                                                                                                                           | Provider rate-limit data is ingested, projected, and surfaced in the UI                                   |
 | Per-instance default model options (default reasoning effort)           | `apps/web/src/components/settings/{ProviderModelsSection.tsx,ProviderInstanceCard.tsx,SettingsPanels.tsx}`, `apps/web/src/modelSelection.ts` (+`.test.ts`), `composerDraftStore.ts`, `session-logic.ts`, `packages/contracts/src/settings.ts`                                                                                                                                                                        | Each provider instance carries default model + reasoning effort that seed new sessions                    |
 | Fork build & release plumbing                                           | `scripts/prepare-fork-build.ts`, `scripts/build-fork-installer.ts`, `package.json` scripts `prepare:fork-build` / `dist:fork`, `.env.fork` in `.gitignore`                                                                                                                                                                                                                                                           | Fork-branded installers built with pnpm (the repo's package manager)                                      |
-| Sync/CI shape                                                           | `.github/workflows/sync-upstream.yml`, `.gitattributes` `merge=ours` rule, **deleted** `.github/workflows/release.yml`, `FORK.md`, AGENTS.md "Verifying" section                                                                                                                                                                                                                                                     | Fork has no CI; upstream's release workflow must never come back                                          |
+| Sync/CI shape                                                           | `.github/workflows/sync-upstream.yml`, `.gitattributes` `merge=ours` rule, the **deleted** workflows listed in `FORK.md`, `FORK.md` itself, AGENTS.md "Verifying" section                                                                                                                                                                                                                                            | Fork has no CI; the workflows it cannot run must never come back                                          |
 | Dev-time updater suppression                                            | `T3CODE_DISABLE_AUTO_UPDATE ??= "1"` in `apps/desktop/scripts/{dev-electron.mjs,start-electron.mjs}`                                                                                                                                                                                                                                                                                                                 | Dev/start Electron runs never auto-update                                                                 |
 
 ## 4. Merge
@@ -59,7 +59,7 @@ As of `v0.0.31`, the fork owns these features. Files move; the intent is what mu
 ```bash
 git status --porcelain        # must be clean
 git switch main
-git config merge.ours.driver true   # required by .gitattributes for release.yml
+git config merge.ours.driver true   # required by the .gitattributes merge=ours rule
 git merge <tag> --no-edit -m "Merge upstream stable release <tag>"
 git diff --name-only --diff-filter=U
 ```
@@ -81,7 +81,7 @@ Never resolve by dropping fork behavior just to make the conflict disappear — 
 
 Standing rules:
 
-- `.github/workflows/release.yml` stays deleted. `.gitattributes` marks it `merge=ours`, which needs the `merge.ours.driver` config above; if it reappears, `git rm -f .github/workflows/release.yml`.
+- **Deleted workflows stay deleted.** The fork removes every workflow it cannot run — see the table in [`FORK.md`](../../../FORK.md#workflows-the-fork-does-not-run): `ci.yml`, `release.yml`, `deploy-relay.yml`, `mobile-eas-preview.yml`, `mobile-eas-production.yml`, `mobile-fingerprint-check.yml`, `mobile-showcase-screenshots.yml`, `web-preview.yml`, `thread-transfer-report.yml` (plus `.github/scripts/thread-transfer-report.*`). Any of these that upstream edits comes back as a **modify/delete** conflict; `merge=ours` does not prevent that (it only covers content conflicts), so the resolution is always `git rm -f <path>`. Keep `issue-labels.yml`, `pr-size.yml`, and `pr-vouch.yml` — they run on stock runners with only `GITHUB_TOKEN`. If upstream adds a _new_ workflow, keep it only if it needs neither a `blacksmith-*` runner nor secrets the fork lacks.
 - `.github/workflows/sync-upstream.yml` is fork-only; keep the fork's version unless upstream's tooling changed in a way it must track.
 - Package manager is pnpm (`packageManager: pnpm@11.10.0`). Fork scripts shell out via pnpm; if upstream changes the package manager again, update `scripts/prepare-fork-build.ts` and `scripts/build-fork-installer.ts` to match (precedent: commit `ef91120b2`).
 - On `pnpm-lock.yaml` conflicts, take upstream's file whole (`git checkout --theirs -- pnpm-lock.yaml`) and then run `pnpm install` to reconcile; never hand-merge the lockfile.

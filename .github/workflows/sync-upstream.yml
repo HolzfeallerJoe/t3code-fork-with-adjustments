@@ -32,8 +32,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Register the "ours" merge driver used by .gitattributes to keep the
-          # fork's own release workflow file (see /.github/workflows/release.yml)
+          # Register the "ours" merge driver used by .gitattributes. It only
+          # settles content conflicts; deleted paths are handled by IGNORE_PATHS
+          # in the merge step below.
           git config merge.ours.driver true
 
       - name: Add upstream remote and fetch tags
@@ -80,38 +81,62 @@ jobs:
         continue-on-error: true
         run: |
           LATEST_TAG="${{ steps.find_stable.outputs.latest_tag }}"
-          IGNORE_PATH=".github/workflows/release.yml"
+          # Paths where the fork's state always wins over upstream's. These are the
+          # workflows the fork cannot run plus their helpers; see FORK.md,
+          # "Workflows the fork does not run". Upstream edits them regularly, and
+          # because the fork deletes them each edit lands as a modify/delete
+          # conflict that `merge=ours` cannot absorb -- hence this list.
+          IGNORE_PATHS="
+          .github/workflows/ci.yml
+          .github/workflows/release.yml
+          .github/workflows/deploy-relay.yml
+          .github/workflows/mobile-eas-preview.yml
+          .github/workflows/mobile-eas-production.yml
+          .github/workflows/mobile-fingerprint-check.yml
+          .github/workflows/mobile-showcase-screenshots.yml
+          .github/workflows/web-preview.yml
+          .github/workflows/thread-transfer-report.yml
+          .github/scripts/thread-transfer-report.cjs
+          .github/scripts/thread-transfer-report.test.cjs
+          "
           echo "Merging stable release $LATEST_TAG..."
           BEFORE_SHA=$(git rev-parse HEAD)
 
           # Don't let conflicts abort the step; we inspect them below.
           git merge "$LATEST_TAG" --no-edit -m "Merge upstream stable release $LATEST_TAG" || true
 
-          # If anything OTHER than the ignored release workflow conflicted, it's a
-          # genuine conflict -> abort and let the conflict handler open an issue.
-          CONFLICTS=$(git diff --name-only --diff-filter=U)
-          if [ -n "$CONFLICTS" ] && [ "$CONFLICTS" != "$IGNORE_PATH" ]; then
+          # If anything OUTSIDE the override list conflicted, it's a genuine
+          # conflict -> abort and let the conflict handler report it.
+          UNEXPECTED=""
+          for path in $(git diff --name-only --diff-filter=U); do
+            if ! printf '%s\n' $IGNORE_PATHS | grep -qxF "$path"; then
+              UNEXPECTED="$UNEXPECTED$path "
+            fi
+          done
+          if [ -n "$UNEXPECTED" ]; then
             echo "Genuine merge conflict in:"
-            echo "$CONFLICTS"
+            for path in $UNEXPECTED; do echo "  $path"; done
             git merge --abort || true
             exit 1
           fi
 
-          # Force the fork's own state of the release workflow, ignoring upstream.
-          # This covers the file being kept, modified, or deleted in the fork,
+          # Force the fork's own state for every overridden path, ignoring upstream.
+          # This covers each file being kept, modified, or deleted in the fork,
           # including a modify/delete conflict when upstream changed it.
-          if git cat-file -e "$BEFORE_SHA:$IGNORE_PATH" 2>/dev/null; then
-            git checkout "$BEFORE_SHA" -- "$IGNORE_PATH"
-          else
-            git rm -f --ignore-unmatch -- "$IGNORE_PATH"
-          fi
+          for path in $IGNORE_PATHS; do
+            if git cat-file -e "$BEFORE_SHA:$path" 2>/dev/null; then
+              git checkout "$BEFORE_SHA" -- "$path"
+            else
+              git rm -f --ignore-unmatch -- "$path"
+            fi
+          done
 
           if [ -f .git/MERGE_HEAD ]; then
             # Conflict path: finalize the in-progress merge.
             git commit --no-edit
           elif ! git diff --cached --quiet; then
-            # Clean merge that pulled in upstream's release.yml: amend it out.
-            echo "Reverted upstream changes to release.yml, amending merge commit"
+            # Clean merge that pulled an overridden path back in: amend it out.
+            echo "Reverted upstream changes to fork-overridden paths, amending merge commit"
             git commit --amend --no-edit
           fi
           echo "merge_success=true" >> $GITHUB_OUTPUT
