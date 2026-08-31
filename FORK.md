@@ -19,6 +19,8 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `ci.yml`                          | Blacksmith runners; the fork has no CI.                                                                                          |
 | `release.yml`                     | Upstream's release pipeline; the fork ships via `pnpm dist:fork`.                                                                |
 | `deploy-relay.yml`                | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                |
+| `desktop-macos-preview.yml`       | Blacksmith macOS + Linux runners.                                                                                                |
+| `publish-aur.yml`                 | Blacksmith + `AUR_SSH_PRIVATE_KEY`; the fork does not publish to the AUR.                                                        |
 | `mobile-eas-preview.yml`          | Blacksmith + `EXPO_TOKEN`.                                                                                                       |
 | `mobile-eas-production.yml`       | Blacksmith + `EXPO_TOKEN`.                                                                                                       |
 | `mobile-fingerprint-check.yml`    | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                  |

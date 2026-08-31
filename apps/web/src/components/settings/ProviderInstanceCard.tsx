@@ -380,11 +380,13 @@ interface ProviderInstanceCardProps {
   readonly hiddenModels: ReadonlyArray<string>;
   readonly favoriteModels: ReadonlyArray<string>;
   readonly modelOrder: ReadonlyArray<string>;
-  readonly defaultModelOptions: ReadonlyArray<ProviderOptionSelection>;
+  readonly defaultModelOptions?: ReadonlyArray<ProviderOptionSelection> | undefined;
   readonly onHiddenModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onFavoriteModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onModelOrderChange: (next: ReadonlyArray<string>) => void;
-  readonly onDefaultModelOptionsChange: (next: ReadonlyArray<ProviderOptionSelection>) => void;
+  readonly onDefaultModelOptionsChange?:
+    | ((next: ReadonlyArray<ProviderOptionSelection>) => void)
+    | undefined;
   readonly onRunUpdate?: (() => void) | undefined;
   readonly isUpdating?: boolean | undefined;
 }

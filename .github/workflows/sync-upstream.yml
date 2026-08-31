@@ -94,6 +94,8 @@ jobs:
           .github/workflows/mobile-eas-production.yml
           .github/workflows/mobile-fingerprint-check.yml
           .github/workflows/mobile-showcase-screenshots.yml
+          .github/workflows/desktop-macos-preview.yml
+          .github/workflows/publish-aur.yml
           .github/workflows/web-preview.yml
           .github/workflows/thread-transfer-report.yml
           .github/scripts/thread-transfer-report.cjs

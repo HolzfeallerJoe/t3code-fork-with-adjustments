@@ -41,6 +41,7 @@ const CUSTOM_MODEL_PLACEHOLDER_BY_KIND: Partial<Record<ProviderDriverKind, strin
 };
 const REASONING_DESCRIPTOR_IDS = ["reasoningEffort", "effort", "reasoning", "variant"] as const;
 const MODEL_DEFAULT_VALUE = "__model_default__";
+const EMPTY_MODEL_OPTIONS: ReadonlyArray<ProviderOptionSelection> = [];
 
 interface ProviderModelsSectionProps {
   /** Identifier used to namespace input ids within the DOM. */
@@ -68,7 +69,7 @@ interface ProviderModelsSectionProps {
   /** Explicit user-authored model ordering for this provider instance. */
   readonly modelOrder: ReadonlyArray<string>;
   /** Default model options applied when a thread/draft has no explicit selections. */
-  readonly defaultModelOptions: ReadonlyArray<ProviderOptionSelection>;
+  readonly defaultModelOptions?: ReadonlyArray<ProviderOptionSelection> | undefined;
   /**
    * Commit the new custom-model list. Caller is responsible for routing the
    * write to the correct storage (legacy `settings.providers[kind]` vs.
@@ -78,7 +79,9 @@ interface ProviderModelsSectionProps {
   readonly onHiddenModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onFavoriteModelsChange: (next: ReadonlyArray<string>) => void;
   readonly onModelOrderChange: (next: ReadonlyArray<string>) => void;
-  readonly onDefaultModelOptionsChange: (next: ReadonlyArray<ProviderOptionSelection>) => void;
+  readonly onDefaultModelOptionsChange?:
+    | ((next: ReadonlyArray<ProviderOptionSelection>) => void)
+    | undefined;
 }
 
 type ReasoningDefaultOption = {
@@ -183,7 +186,7 @@ export function ProviderModelsSection({
   hiddenModels,
   favoriteModels,
   modelOrder,
-  defaultModelOptions,
+  defaultModelOptions = EMPTY_MODEL_OPTIONS,
   onChange,
   onHiddenModelsChange,
   onFavoriteModelsChange,
@@ -284,7 +287,7 @@ export function ProviderModelsSection({
       <div className="mt-1 text-xs text-muted-foreground">
         {models.length} model{models.length === 1 ? "" : "s"} available.
       </div>
-      {reasoningDefault ? (
+      {reasoningDefault && onDefaultModelOptionsChange ? (
         <div className="mt-3 flex flex-col gap-1.5 rounded-md border border-border/70 bg-muted/20 p-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="text-xs font-medium text-foreground">Default reasoning effort</div>
