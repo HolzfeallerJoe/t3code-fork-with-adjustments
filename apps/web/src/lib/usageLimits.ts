@@ -1,80 +1,46 @@
 import type {
-  OrchestrationThreadActivity,
-  ProviderDriverKind,
   ProviderInstanceId,
+  ServerProvider,
+  ServerProviderUsageWindow,
 } from "@t3tools/contracts";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
-
-interface RateLimitActivityEnvironmentState {
-  readonly activityIdsByThreadId: Record<string, readonly string[]>;
-  readonly activityByThreadId: Record<string, Record<string, OrchestrationThreadActivity>>;
-  readonly [key: string]: unknown;
-}
-
-interface RateLimitActivityState {
-  readonly environmentStateById: Record<string, RateLimitActivityEnvironmentState>;
-  readonly [key: string]: unknown;
-}
 
 export interface UsageLimitWindowSnapshot {
   readonly key: string;
   readonly label: string | null;
   readonly usedPercent: number;
+  /** Epoch milliseconds, or null when the provider reports no reset time. */
   readonly resetsAt: number | null;
   readonly windowDurationMins: number | null;
-  readonly status: string | null;
 }
 
 export interface AccountRateLimitsSnapshot {
   readonly windows: readonly UsageLimitWindowSnapshot[];
-  readonly provider: ProviderDriverKind | string | null;
-  readonly providerInstanceId: ProviderInstanceId | string | null;
-  readonly limitId: string | null;
-  readonly limitName: string | null;
-  readonly planType: string | null;
-  readonly reachedType: string | null;
+  readonly providerInstanceId: ProviderInstanceId | null;
+  /** The signed-in account label the provider reports, e.g. "ChatGPT Pro". */
+  readonly accountLabel: string | null;
   readonly updatedAt: string;
 }
 
 interface RateLimitDeriveOptions {
-  readonly providerInstanceId?: ProviderInstanceId | string | null;
-  readonly provider?: ProviderDriverKind | string | null;
+  readonly providerInstanceId?: ProviderInstanceId | null | undefined;
   readonly now?: number;
 }
 
-interface ParsedRateLimitSnapshot {
-  readonly windows: readonly UsageLimitWindowSnapshot[];
-  readonly provider: ProviderDriverKind | string | null;
-  readonly providerInstanceId: ProviderInstanceId | string | null;
-  readonly limitId: string | null;
-  readonly limitName: string | null;
-  readonly planType: string | null;
-  readonly reachedType: string | null;
-}
+/** Session windows first, then the longer allowances the provider reports. */
+const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
+  session: 0,
+  weekly: 1,
+  monthly: 2,
+  other: 3,
+};
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
-}
-
-function asFiniteNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function normalizePercent(value: number): number {
-  const percent = value <= 1 ? value * 100 : value;
-  return Math.max(0, Math.min(100, Math.round(percent)));
-}
-
-function normalizeResetTimestamp(value: unknown): number | null {
-  const timestamp = asFiniteNumber(value);
-  if (timestamp === null) {
+function parseTimestamp(value: string | undefined): number | null {
+  if (value === undefined) {
     return null;
   }
-  return timestamp < 100_000_000_000 ? timestamp * 1000 : timestamp;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatDurationLabel(minutes: number | null): string | null {
@@ -90,68 +56,47 @@ function formatDurationLabel(minutes: number | null): string | null {
   return `${Math.round(minutes / (24 * 60))}d`;
 }
 
-function humanizeLimitType(value: string): string {
-  return value
-    .split(/[_\s-]+/u)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function claudeRateLimitTypeToWindow(
-  rateLimitType: string | null,
-): Pick<UsageLimitWindowSnapshot, "label" | "windowDurationMins"> {
-  switch (rateLimitType) {
-    case "five_hour":
-      return { label: "5h", windowDurationMins: 5 * 60 };
-    case "seven_day":
-      return { label: "7d", windowDurationMins: 7 * 24 * 60 };
-    case "seven_day_opus":
-      return { label: "7d Opus", windowDurationMins: 7 * 24 * 60 };
-    case "seven_day_sonnet":
-      return { label: "7d Sonnet", windowDurationMins: 7 * 24 * 60 };
-    case "overage":
-      return { label: "Overage", windowDurationMins: null };
-    default:
-      return {
-        label: rateLimitType ? humanizeLimitType(rateLimitType) : null,
-        windowDurationMins: null,
-      };
-  }
-}
-
-function parseOpenAiWindow(
-  value: unknown,
-  key: string,
-  fallbackLabel: string | null,
-): UsageLimitWindowSnapshot | null {
-  const record = asRecord(value);
-  if (!record) {
-    return null;
-  }
-  const usedPercent = asFiniteNumber(record.usedPercent);
-  if (usedPercent === null) {
-    return null;
-  }
-  const windowDurationMins = asFiniteNumber(record.windowDurationMins);
+function toWindowSnapshot(window: ServerProviderUsageWindow): UsageLimitWindowSnapshot {
   return {
-    key,
-    label: formatDurationLabel(windowDurationMins) ?? fallbackLabel,
-    usedPercent: normalizePercent(usedPercent),
-    resetsAt: normalizeResetTimestamp(record.resetsAt),
-    windowDurationMins,
-    status: null,
+    key: window.id,
+    label: window.label,
+    usedPercent: Math.max(0, Math.min(100, Math.round(window.usedPercent))),
+    resetsAt: parseTimestamp(window.resetsAt),
+    windowDurationMins: window.windowDurationMins ?? null,
   };
 }
 
-function parseOpenAiRateLimitSnapshot(
-  record: Record<string, unknown>,
-  keyPrefix: string,
-): ParsedRateLimitSnapshot | null {
-  const windows = [
-    parseOpenAiWindow(record.primary, `${keyPrefix}:primary`, null),
-    parseOpenAiWindow(record.secondary, `${keyPrefix}:secondary`, null),
-  ].filter((window): window is UsageLimitWindowSnapshot => window !== null);
+/**
+ * Compact usage snapshot for the composer strip, read from the provider
+ * snapshot the server publishes. Adapters normalise their native rate-limit
+ * payloads at the boundary and `ProviderUsageLimitsIngestion` folds live
+ * updates into that snapshot, so the strip never parses driver shapes.
+ */
+export function deriveAccountRateLimitsSnapshot(
+  providers: ReadonlyArray<ServerProvider>,
+  options?: RateLimitDeriveOptions,
+): AccountRateLimitsSnapshot | null {
+  const instanceId = options?.providerInstanceId ?? null;
+  if (instanceId === null) {
+    return null;
+  }
+  const provider = providers.find((candidate) => candidate.instanceId === instanceId);
+  const limits = provider?.usageLimits;
+  if (!provider || !limits || limits.unavailable !== undefined) {
+    return null;
+  }
+
+  const now = options?.now ?? Date.now();
+  // A provider only republishes a window when its state changes, so one that
+  // reset since the last probe still reports its pre-reset percentage. Drop
+  // windows whose reset has already passed rather than showing a stale bar.
+  const windows = limits.windows
+    .filter((window) => {
+      const resetsAt = parseTimestamp(window.resetsAt);
+      return resetsAt === null || resetsAt > now;
+    })
+    .toSorted((left, right) => WINDOW_KIND_ORDER[left.kind] - WINDOW_KIND_ORDER[right.kind])
+    .map(toWindowSnapshot);
 
   if (windows.length === 0) {
     return null;
@@ -159,248 +104,10 @@ function parseOpenAiRateLimitSnapshot(
 
   return {
     windows,
-    provider: null,
-    providerInstanceId: null,
-    limitId: asString(record.limitId),
-    limitName: asString(record.limitName),
-    planType: asString(record.planType),
-    reachedType: asString(record.rateLimitReachedType),
+    providerInstanceId: instanceId,
+    accountLabel: provider.auth.label ?? null,
+    updatedAt: limits.checkedAt,
   };
-}
-
-function parseClaudeRateLimitSnapshot(
-  record: Record<string, unknown>,
-): ParsedRateLimitSnapshot | null {
-  const info = asRecord(record.rate_limit_info);
-  if (!info) {
-    return null;
-  }
-  const utilization = asFiniteNumber(info.utilization);
-  if (utilization === null) {
-    return null;
-  }
-  const rateLimitType = asString(info.rateLimitType);
-  const window = claudeRateLimitTypeToWindow(rateLimitType);
-
-  return {
-    windows: [
-      {
-        key: `claude:${rateLimitType ?? "default"}`,
-        label: window.label,
-        usedPercent: normalizePercent(utilization),
-        resetsAt: normalizeResetTimestamp(info.resetsAt),
-        windowDurationMins: window.windowDurationMins,
-        status: asString(info.status),
-      },
-    ],
-    provider: "claudeAgent",
-    providerInstanceId: null,
-    limitId: rateLimitType,
-    limitName: rateLimitType ? humanizeLimitType(rateLimitType) : "Claude",
-    planType: null,
-    reachedType: asString(info.status),
-  };
-}
-
-function mergeParsedSnapshots(
-  left: ParsedRateLimitSnapshot | null,
-  right: ParsedRateLimitSnapshot | null,
-): ParsedRateLimitSnapshot | null {
-  if (!left) {
-    return right;
-  }
-  if (!right) {
-    return left;
-  }
-  return {
-    windows: [...left.windows, ...right.windows],
-    provider: left.provider ?? right.provider,
-    providerInstanceId: left.providerInstanceId ?? right.providerInstanceId,
-    limitId: left.limitId ?? right.limitId,
-    limitName: left.limitName ?? right.limitName,
-    planType: left.planType ?? right.planType,
-    reachedType: left.reachedType ?? right.reachedType,
-  };
-}
-
-function parseRateLimitPayload(payload: unknown): ParsedRateLimitSnapshot | null {
-  const root = asRecord(payload);
-  if (!root) {
-    return null;
-  }
-
-  const provider = asString(root.provider);
-  const providerInstanceId = asString(root.providerInstanceId);
-  let parsed: ParsedRateLimitSnapshot | null = null;
-
-  const claude = parseClaudeRateLimitSnapshot(root);
-  parsed = mergeParsedSnapshots(parsed, claude);
-
-  const openAi = parseOpenAiRateLimitSnapshot(root, provider ?? asString(root.limitId) ?? "limit");
-  parsed = mergeParsedSnapshots(parsed, openAi);
-
-  const nestedRateLimits =
-    root.rateLimits !== undefined ? parseRateLimitPayload(root.rateLimits) : null;
-  parsed = mergeParsedSnapshots(parsed, nestedRateLimits);
-
-  const rateLimitsByLimitId = asRecord(root.rateLimitsByLimitId);
-  if (rateLimitsByLimitId) {
-    for (const [limitId, value] of Object.entries(rateLimitsByLimitId)) {
-      const limitRecord = asRecord(value);
-      const limitSnapshot = limitRecord ? parseOpenAiRateLimitSnapshot(limitRecord, limitId) : null;
-      parsed = mergeParsedSnapshots(parsed, limitSnapshot);
-    }
-  }
-
-  if (!parsed) {
-    return null;
-  }
-
-  return {
-    ...parsed,
-    provider: provider ?? parsed.provider,
-    providerInstanceId: providerInstanceId ?? parsed.providerInstanceId,
-  };
-}
-
-function matchesProvider(
-  snapshot: ParsedRateLimitSnapshot | AccountRateLimitsSnapshot,
-  options: RateLimitDeriveOptions | undefined,
-): boolean {
-  if (!options) {
-    return true;
-  }
-  if (
-    options.providerInstanceId &&
-    snapshot.providerInstanceId &&
-    snapshot.providerInstanceId !== options.providerInstanceId
-  ) {
-    return false;
-  }
-  if (options.provider && snapshot.provider && snapshot.provider !== options.provider) {
-    return false;
-  }
-  if (
-    options.providerInstanceId &&
-    !snapshot.providerInstanceId &&
-    options.provider &&
-    snapshot.provider
-  ) {
-    return snapshot.provider === options.provider;
-  }
-  if (options.providerInstanceId && !snapshot.providerInstanceId) {
-    return false;
-  }
-  if (options.provider && !snapshot.provider) {
-    return false;
-  }
-  return true;
-}
-
-function windowIdentityKey(window: UsageLimitWindowSnapshot): string {
-  return `${window.label ?? "limit"}:${window.windowDurationMins ?? "unknown"}`;
-}
-
-function isWindowExpired(window: UsageLimitWindowSnapshot, now: number): boolean {
-  return window.resetsAt !== null && window.resetsAt <= now;
-}
-
-function toSnapshot(parsed: ParsedRateLimitSnapshot, updatedAt: string): AccountRateLimitsSnapshot {
-  const windowsByKey = new Map<string, UsageLimitWindowSnapshot>();
-  for (const window of parsed.windows) {
-    const key = windowIdentityKey(window);
-    if (!windowsByKey.has(key)) {
-      windowsByKey.set(key, window);
-    }
-  }
-
-  return {
-    windows: [...windowsByKey.values()],
-    provider: parsed.provider,
-    providerInstanceId: parsed.providerInstanceId,
-    limitId: parsed.limitId,
-    limitName: parsed.limitName,
-    planType: parsed.planType,
-    reachedType: parsed.reachedType,
-    updatedAt,
-  };
-}
-
-export function deriveLatestAccountRateLimitsSnapshot(
-  activities: ReadonlyArray<OrchestrationThreadActivity>,
-  options?: RateLimitDeriveOptions,
-): AccountRateLimitsSnapshot | null {
-  let latestParsed: ParsedRateLimitSnapshot | null = null;
-  let latestUpdatedAt: string | null = null;
-  const seenWindowKeys = new Set<string>();
-  const now = options?.now ?? Date.now();
-
-  for (let index = activities.length - 1; index >= 0; index -= 1) {
-    const activity = activities[index];
-    if (!activity || activity.kind !== "account-rate-limits.updated") {
-      continue;
-    }
-
-    const parsed = parseRateLimitPayload(activity.payload);
-    if (!parsed || !matchesProvider(parsed, options)) {
-      continue;
-    }
-
-    // Claude only emits a rate_limit_event when state changes, so a window we saw
-    // at 95% an hour ago will still be reported as 95% long after its reset has
-    // passed. Drop windows whose reset is in the past so the chip strip reflects
-    // the current limit, not a frozen pre-reset snapshot.
-    const unseenWindows = parsed.windows.filter(
-      (window) => !seenWindowKeys.has(windowIdentityKey(window)) && !isWindowExpired(window, now),
-    );
-    if (unseenWindows.length === 0) {
-      continue;
-    }
-    for (const window of unseenWindows) {
-      seenWindowKeys.add(windowIdentityKey(window));
-    }
-
-    latestParsed = mergeParsedSnapshots(latestParsed, { ...parsed, windows: unseenWindows });
-    latestUpdatedAt ??= activity.createdAt;
-  }
-
-  return latestParsed && latestUpdatedAt ? toSnapshot(latestParsed, latestUpdatedAt) : null;
-}
-
-export function deriveLatestAccountRateLimitsSnapshotFromState(
-  state: RateLimitActivityState,
-  options?: RateLimitDeriveOptions,
-): AccountRateLimitsSnapshot | null {
-  // Claude emits one window per rate_limit_event and only when state changes,
-  // so the latest report for the 5h window may live in one thread while the
-  // latest for the 7d window lives in another. Picking a single thread's
-  // snapshot drops the others. Collect every rate-limit activity across the
-  // environment, sort chronologically, and let the deriver merge window keys
-  // across the combined timeline.
-  const rateLimitActivities: OrchestrationThreadActivity[] = [];
-  for (const environmentState of Object.values(state.environmentStateById)) {
-    for (const [threadId, activityIds] of Object.entries(environmentState.activityIdsByThreadId)) {
-      const activityById = environmentState.activityByThreadId[threadId] ?? {};
-      for (const activityId of activityIds) {
-        const activity = activityById[activityId];
-        if (activity && activity.kind === "account-rate-limits.updated") {
-          rateLimitActivities.push(activity);
-        }
-      }
-    }
-  }
-  if (rateLimitActivities.length === 0) {
-    return null;
-  }
-  rateLimitActivities.sort((a, b) => {
-    const left = Date.parse(a.createdAt);
-    const right = Date.parse(b.createdAt);
-    if (Number.isFinite(left) && Number.isFinite(right) && left !== right) {
-      return left - right;
-    }
-    return 0;
-  });
-  return deriveLatestAccountRateLimitsSnapshot(rateLimitActivities, options);
 }
 
 export function formatUsageLimitPercent(

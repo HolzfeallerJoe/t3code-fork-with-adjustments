@@ -69,10 +69,6 @@ function iconForWindow(window: UsageLimitWindowSnapshot) {
   return GaugeIcon;
 }
 
-function formatPlanType(planType: string | null): string | null {
-  return planType ? `${planType.charAt(0).toUpperCase()}${planType.slice(1)} plan` : null;
-}
-
 export function UsageLimitStrip({
   contextWindow,
   rateLimits,
@@ -163,12 +159,8 @@ export function UsageLimitStrip({
               );
             })}
           </div>
-          {hasLimitWindows && (rateLimits?.limitName || rateLimits?.planType) ? (
-            <div className="text-xs text-muted-foreground">
-              {[rateLimits.limitName, formatPlanType(rateLimits.planType)]
-                .filter(Boolean)
-                .join(" - ")}
-            </div>
+          {hasLimitWindows && rateLimits?.accountLabel ? (
+            <div className="text-xs text-muted-foreground">{rateLimits.accountLabel}</div>
           ) : null}
         </div>
       </PopoverPopup>

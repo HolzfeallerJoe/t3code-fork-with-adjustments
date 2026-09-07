@@ -4125,7 +4125,10 @@ export function useThreadHasUnsentDraft(threadRef: ScopedThreadRef): boolean {
   );
 }
 
-function useComposerDraftModelState(threadRef: ComposerThreadTarget): ComposerDraftModelState {
+/** Exported for the toolbar usage strip, which needs the composer's active instance. */
+export function useComposerDraftModelState(
+  threadRef: ComposerThreadTarget,
+): ComposerDraftModelState {
   return useComposerDraftStore(
     useShallow((state) => {
       const draft = getComposerDraftState(state, threadRef);

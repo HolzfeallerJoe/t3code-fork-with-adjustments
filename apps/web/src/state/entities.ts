@@ -8,12 +8,7 @@ import {
   type EnvironmentThreadStatus,
   mergeEnvironmentThread,
 } from "@t3tools/client-runtime/state/threads";
-import type {
-  OrchestrationThreadActivity,
-  ScopedProjectRef,
-  ScopedThreadRef,
-  ServerConfig,
-} from "@t3tools/contracts";
+import type { ScopedProjectRef, ScopedThreadRef, ServerConfig } from "@t3tools/contracts";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { Atom } from "effect/unstable/reactivity";
 import { useMemo } from "react";
@@ -27,7 +22,6 @@ import {
 import { environmentThreadDetails, environmentThreadShells } from "./threads";
 
 const EMPTY_THREAD_REFS: ReadonlyArray<ScopedThreadRef> = Object.freeze([]);
-const EMPTY_ACTIVITIES: ReadonlyArray<OrchestrationThreadActivity> = Object.freeze([]);
 
 const EMPTY_PROJECT_ATOM = Atom.make<EnvironmentProject | null>(null).pipe(
   Atom.withLabel("web-project:empty"),
@@ -150,30 +144,6 @@ export function useThread(
     }),
   );
   return useMemo(() => mergeEnvironmentThread(detail, shell), [detail, shell]);
-}
-
-export function useAllThreadActivities(): ReadonlyArray<OrchestrationThreadActivity> {
-  const allThreadActivitiesAtom = useMemo(
-    () =>
-      Atom.make((get) => {
-        const refs = get(environmentThreadShells.threadRefsAtom);
-        if (refs.length === 0) {
-          return EMPTY_ACTIVITIES;
-        }
-
-        const activities = refs.flatMap((ref) => get(environmentThreadDetails.activitiesAtom(ref)));
-        return activities.toSorted((left, right) => {
-          const leftTime = Date.parse(left.createdAt);
-          const rightTime = Date.parse(right.createdAt);
-          if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
-            return leftTime - rightTime;
-          }
-          return 0;
-        });
-      }).pipe(Atom.withLabel("web-thread-activities:all")),
-    [],
-  );
-  return useAtomValue(allThreadActivitiesAtom);
 }
 
 export function readProject(ref: ScopedProjectRef): EnvironmentProject | null {

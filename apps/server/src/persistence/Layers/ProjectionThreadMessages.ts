@@ -201,6 +201,17 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       `,
   });
 
+  const getTurnIdByMessageIdRow = SqlSchema.findOneOption({
+    Request: GetProjectionThreadMessageInput,
+    Result: Schema.Struct({ turnId: ProjectionThreadMessage.fields.turnId }),
+    execute: ({ messageId }) => sql`
+      SELECT turn_id AS "turnId"
+      FROM projection_thread_messages
+      WHERE message_id = ${messageId}
+      LIMIT 1
+    `,
+  });
+
   const getLatestUserMessageAtRow = SqlSchema.findOne({
     Request: ListProjectionThreadMessagesInput,
     Result: Schema.Struct({
@@ -243,6 +254,16 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
       Effect.map(Option.map(toProjectionThreadMessage)),
     );
 
+  const getTurnIdByMessageId: ProjectionThreadMessageRepositoryShape["getTurnIdByMessageId"] = (
+    input,
+  ) =>
+    getTurnIdByMessageIdRow(input).pipe(
+      Effect.mapError(
+        toPersistenceSqlError("ProjectionThreadMessageRepository.getTurnIdByMessageId:query"),
+      ),
+      Effect.map(Option.map((row) => row.turnId)),
+    );
+
   const hasAssistantMessageForTurn: ProjectionThreadMessageRepositoryShape["hasAssistantMessageForTurn"] =
     (input) =>
       hasProjectionThreadAssistantMessageRow(input).pipe(
@@ -283,6 +304,7 @@ const makeProjectionThreadMessageRepository = Effect.gen(function* () {
     upsert,
     appendStreaming,
     getByMessageId,
+    getTurnIdByMessageId,
     hasAssistantMessageForTurn,
     listByThreadId,
     getLatestUserMessageAt,

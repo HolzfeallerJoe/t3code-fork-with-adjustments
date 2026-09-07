@@ -1,3 +1,4 @@
+import { useAtomValue } from "@effect/atom-react";
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentId, OrchestrationThreadActivity, ThreadId } from "@t3tools/contracts";
 import {
@@ -18,13 +19,9 @@ import {
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { usePrimarySettings } from "../hooks/useSettings";
 import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
-import { deriveLatestAccountRateLimitsSnapshot } from "../lib/usageLimits";
-import {
-  useAllThreadActivities,
-  useProject,
-  useThread,
-  useThreadShellsForProjectRefs,
-} from "../state/entities";
+import { deriveAccountRateLimitsSnapshot } from "../lib/usageLimits";
+import { useProject, useThread, useThreadShellsForProjectRefs } from "../state/entities";
+import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../state/server";
 import {
   type EnvMode,
   type EnvironmentOption,
@@ -552,30 +549,29 @@ export const BranchToolbar = memo(function BranchToolbar({
   const [stripElement, setStripElement] = useState<HTMLDivElement | null>(null);
   const labelsOverflow = useLabelsOverflow(stripElement);
   const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
-  const allThreadActivities = useAllThreadActivities();
   const threadActivities = serverThread?.activities;
   const activeContextWindow = useMemo(
     () => deriveLatestContextWindowSnapshot(threadActivities ?? EMPTY_THREAD_ACTIVITIES),
     [threadActivities],
   );
-  const activeRateLimits = useMemo(() => {
-    const providerInstanceId =
-      composerModelState.activeProvider ??
-      serverThread?.session?.providerInstanceId ??
-      serverThread?.modelSelection.instanceId ??
-      null;
-    const provider =
-      composerModelState.activeProvider ?? serverThread?.session?.providerInstanceId ?? null;
-    return deriveLatestAccountRateLimitsSnapshot(allThreadActivities, {
-      provider,
-      providerInstanceId,
-    });
-  }, [
-    allThreadActivities,
-    composerModelState.activeProvider,
-    serverThread?.modelSelection.instanceId,
-    serverThread?.session?.providerInstanceId,
-  ]);
+  const environmentProviders =
+    useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
+  const activeRateLimits = useMemo(
+    () =>
+      deriveAccountRateLimitsSnapshot(environmentProviders, {
+        providerInstanceId:
+          composerModelState.activeProvider ??
+          serverThread?.session?.providerInstanceId ??
+          serverThread?.modelSelection.instanceId ??
+          null,
+      }),
+    [
+      environmentProviders,
+      composerModelState.activeProvider,
+      serverThread?.modelSelection.instanceId,
+      serverThread?.session?.providerInstanceId,
+    ],
+  );
 
   if (!hasActiveThread || !activeProject) return null;
 

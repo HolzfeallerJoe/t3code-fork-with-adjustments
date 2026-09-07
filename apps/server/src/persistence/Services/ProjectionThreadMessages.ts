@@ -90,6 +90,14 @@ export interface ProjectionThreadMessageRepositoryShape {
   ) => Effect.Effect<Option.Option<ProjectionThreadMessage>, ProjectionRepositoryError>;
 
   /**
+   * Read the turn a message belongs to without hydrating its body or
+   * attachments, which a corrupt row would fail to decode.
+   */
+  readonly getTurnIdByMessageId: (
+    input: GetProjectionThreadMessageInput,
+  ) => Effect.Effect<Option.Option<ProjectionThreadMessage["turnId"]>, ProjectionRepositoryError>;
+
+  /**
    * Check for an assistant message in a turn without hydrating message text.
    */
   readonly hasAssistantMessageForTurn: (

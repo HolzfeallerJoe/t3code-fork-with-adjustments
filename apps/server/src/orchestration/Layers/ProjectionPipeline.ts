@@ -495,13 +495,15 @@ const makeOrchestrationProjectionPipeline = Effect.fn("makeOrchestrationProjecti
           return input.messageId;
         }
 
-        const existingMessage = yield* projectionThreadMessageRepository.getByMessageId({
+        // Reads only the turn column: a shell-summary refresh must never
+        // decode a message body or its attachments.
+        const existingTurnId = yield* projectionThreadMessageRepository.getTurnIdByMessageId({
           messageId: input.messageId,
         });
         if (
-          Option.isNone(existingMessage) ||
-          existingMessage.value.turnId === null ||
-          existingMessage.value.turnId === input.turnId
+          Option.isNone(existingTurnId) ||
+          existingTurnId.value === null ||
+          existingTurnId.value === input.turnId
         ) {
           return input.messageId;
         }

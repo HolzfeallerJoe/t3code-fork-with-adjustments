@@ -1,9 +1,8 @@
+import { ProviderInstanceId, type ServerProvider } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
-import { EventId, type OrchestrationThreadActivity, ThreadId, TurnId } from "@t3tools/contracts";
 
 import {
-  deriveLatestAccountRateLimitsSnapshot,
-  deriveLatestAccountRateLimitsSnapshotFromState,
+  deriveAccountRateLimitsSnapshot,
   formatUsageLimitChipValue,
   formatUsageLimitPercent,
   formatUsageLimitTooltipValue,
@@ -11,150 +10,151 @@ import {
   isUsageLimitWindowExhausted,
 } from "./usageLimits";
 
-function makeActivity(id: string, kind: string, payload: unknown): OrchestrationThreadActivity {
+const CHECKED_AT = "2026-03-23T00:00:00.000Z";
+const NOW = Date.parse(CHECKED_AT);
+
+function makeProvider(input: {
+  id: string;
+  usageLimits?: ServerProvider["usageLimits"];
+  authLabel?: string;
+}): ServerProvider {
   return {
-    id: EventId.make(id),
-    tone: "info",
-    kind,
-    summary: kind,
-    payload,
-    turnId: TurnId.make("turn-1"),
-    createdAt: "2026-03-23T00:00:00.000Z",
-  };
+    instanceId: ProviderInstanceId.make(input.id),
+    driver: "codex",
+    label: input.id,
+    enabled: true,
+    installed: true,
+    version: null,
+    status: "ready",
+    auth: { status: "authenticated", ...(input.authLabel ? { label: input.authLabel } : {}) },
+    checkedAt: CHECKED_AT,
+    models: [],
+    slashCommands: [],
+    skills: [],
+    ...(input.usageLimits ? { usageLimits: input.usageLimits } : {}),
+  } as unknown as ServerProvider;
 }
 
-describe("usageLimits", () => {
-  it("derives hourly and weekly windows from the latest valid rate limit activity", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot([
-      makeActivity("activity-1", "account-rate-limits.updated", {
-        provider: "codex",
-        providerInstanceId: "codex",
-        rateLimits: {
-          primary: {
-            usedPercent: 90,
-            windowDurationMins: 60,
-          },
-        },
-      }),
-      makeActivity("activity-2", "tool.started", {}),
-      makeActivity("activity-3", "account-rate-limits.updated", {
-        provider: "codex",
-        providerInstanceId: "codex",
-        rateLimits: {
-          limitId: "codex",
-          limitName: "Codex",
-          planType: "pro",
-          primary: {
-            usedPercent: 12,
-            windowDurationMins: 60,
-          },
-          secondary: {
-            usedPercent: 34,
-            windowDurationMins: 10_080,
-          },
-        },
-      }),
-    ]);
-
-    expect(snapshot).not.toBeNull();
-    expect(snapshot?.limitId).toBe("codex");
-    expect(snapshot?.limitName).toBe("Codex");
-    expect(snapshot?.planType).toBe("pro");
-    expect(snapshot?.provider).toBe("codex");
-    expect(snapshot?.providerInstanceId).toBe("codex");
-    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
-      ["1h", 12],
-      ["7d", 34],
-    ]);
-  });
-
-  it("handles account rate limits keyed by limit id", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot([
-      makeActivity("activity-1", "account-rate-limits.updated", {
-        rateLimitsByLimitId: {
-          codex: {
-            primary: {
-              usedPercent: 42,
-              windowDurationMins: 60,
-            },
-            secondary: {
-              usedPercent: 7,
-              windowDurationMins: 10_080,
-            },
-          },
-        },
-      }),
-    ]);
-
-    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
-      ["1h", 42],
-      ["7d", 7],
-    ]);
-  });
-
-  it("handles Claude rate limit events without OpenAI-shaped windows", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+describe("deriveAccountRateLimitsSnapshot", () => {
+  it("orders session windows ahead of longer allowances", () => {
+    const snapshot = deriveAccountRateLimitsSnapshot(
       [
-        makeActivity("activity-1", "account-rate-limits.updated", {
-          provider: "claudeAgent",
-          providerInstanceId: "claudeAgent",
-          rateLimits: {
-            type: "rate_limit_event",
-            rate_limit_info: {
-              status: "allowed_warning",
-              rateLimitType: "five_hour",
-              utilization: 0.37,
-              resetsAt: 1_775_000_000,
-            },
-          },
-        }),
-        makeActivity("activity-2", "account-rate-limits.updated", {
-          provider: "claudeAgent",
-          providerInstanceId: "claudeAgent",
-          rateLimits: {
-            type: "rate_limit_event",
-            rate_limit_info: {
-              status: "allowed",
-              rateLimitType: "seven_day_opus",
-              utilization: 42,
-            },
+        makeProvider({
+          id: "codex",
+          authLabel: "ChatGPT Pro",
+          usageLimits: {
+            checkedAt: CHECKED_AT,
+            windows: [
+              { id: "secondary", kind: "weekly", label: "7d", usedPercent: 34 },
+              { id: "primary", kind: "session", label: "5h", usedPercent: 12 },
+            ],
           },
         }),
       ],
-      { now: 1_774_000_000_000 },
+      { providerInstanceId: ProviderInstanceId.make("codex"), now: NOW },
     );
 
-    expect(snapshot?.provider).toBe("claudeAgent");
     expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
-      ["7d Opus", 42],
-      ["5h", 37],
+      ["5h", 12],
+      ["7d", 34],
     ]);
+    expect(snapshot?.accountLabel).toBe("ChatGPT Pro");
+    expect(snapshot?.updatedAt).toBe(CHECKED_AT);
   });
 
-  it("ignores malformed payloads and formats placeholders", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot([
-      makeActivity("activity-1", "account-rate-limits.updated", {}),
-    ]);
+  it("reads only the requested provider instance", () => {
+    const providers = [
+      makeProvider({
+        id: "codex",
+        usageLimits: {
+          checkedAt: CHECKED_AT,
+          windows: [{ id: "primary", kind: "session", label: "5h", usedPercent: 12 }],
+        },
+      }),
+      makeProvider({ id: "claude" }),
+    ];
 
-    expect(snapshot).toBeNull();
-    expect(formatUsageLimitPercent(null)).toBe("--");
+    expect(
+      deriveAccountRateLimitsSnapshot(providers, {
+        providerInstanceId: ProviderInstanceId.make("claude"),
+        now: NOW,
+      }),
+    ).toBeNull();
+    expect(deriveAccountRateLimitsSnapshot(providers, { now: NOW })).toBeNull();
   });
 
-  it("formats limit chips as remaining or used percentages", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot(
+  it("hides limits a provider cannot report", () => {
+    const snapshot = deriveAccountRateLimitsSnapshot(
       [
-        makeActivity("activity-1", "account-rate-limits.updated", {
-          provider: "codex",
-          rateLimits: {
-            primary: {
-              usedPercent: 100,
-              windowDurationMins: 300,
-              resetsAt: 1_775_000_000,
-            },
+        makeProvider({
+          id: "codex",
+          usageLimits: {
+            checkedAt: CHECKED_AT,
+            windows: [{ id: "primary", kind: "session", label: "5h", usedPercent: 12 }],
+            unavailable: { reason: "unsupported" },
           },
         }),
       ],
-      { now: 1_774_000_000_000 },
+      { providerInstanceId: ProviderInstanceId.make("codex"), now: NOW },
+    );
+
+    expect(snapshot).toBeNull();
+  });
+
+  it("drops windows whose reset has already passed", () => {
+    const snapshot = deriveAccountRateLimitsSnapshot(
+      [
+        makeProvider({
+          id: "codex",
+          usageLimits: {
+            checkedAt: CHECKED_AT,
+            windows: [
+              {
+                id: "primary",
+                kind: "session",
+                label: "5h",
+                usedPercent: 95,
+                resetsAt: "2026-03-22T23:00:00.000Z",
+              },
+              {
+                id: "secondary",
+                kind: "weekly",
+                label: "7d",
+                usedPercent: 40,
+                resetsAt: "2026-03-26T00:00:00.000Z",
+              },
+            ],
+          },
+        }),
+      ],
+      { providerInstanceId: ProviderInstanceId.make("codex"), now: NOW },
+    );
+
+    expect(snapshot?.windows.map((window) => window.label)).toEqual(["7d"]);
+  });
+});
+
+describe("usage limit formatting", () => {
+  it("formats chips as remaining or used percentages", () => {
+    const snapshot = deriveAccountRateLimitsSnapshot(
+      [
+        makeProvider({
+          id: "codex",
+          usageLimits: {
+            checkedAt: CHECKED_AT,
+            windows: [
+              {
+                id: "primary",
+                kind: "session",
+                label: "5h",
+                usedPercent: 100,
+                windowDurationMins: 300,
+              },
+            ],
+          },
+        }),
+      ],
+      { providerInstanceId: ProviderInstanceId.make("codex"), now: NOW },
     );
     const window = snapshot?.windows[0] ?? null;
 
@@ -166,221 +166,17 @@ describe("usageLimits", () => {
     expect(formatUsageLimitTooltipValue(window, "used")).toBe("100% used");
   });
 
-  it("merges rate-limit windows reported across multiple threads", () => {
-    const older = makeActivity("activity-1", "account-rate-limits.updated", {
-      rateLimits: {
-        primary: {
-          usedPercent: 12,
-          windowDurationMins: 60,
-        },
-      },
-    });
-    const newer = {
-      ...makeActivity("activity-2", "account-rate-limits.updated", {
-        rateLimits: {
-          primary: {
-            usedPercent: 55,
-            windowDurationMins: 300,
-          },
-        },
+  it("falls back to the window duration when no label is reported", () => {
+    expect(formatUsageLimitPercent(null)).toBe("--");
+    expect(formatUsageWindowLabel(null)).toBe("Limit");
+    expect(
+      formatUsageWindowLabel({
+        key: "primary",
+        label: null,
+        usedPercent: 10,
+        resetsAt: null,
+        windowDurationMins: 10_080,
       }),
-      createdAt: "2026-03-23T01:00:00.000Z",
-    };
-    const thread1 = ThreadId.make("thread-1");
-    const thread2 = ThreadId.make("thread-2");
-
-    const snapshot = deriveLatestAccountRateLimitsSnapshotFromState({
-      activeEnvironmentId: null,
-      environmentStateById: {
-        env: {
-          projectIds: [],
-          projectById: {},
-          threadIds: [],
-          threadIdsByProjectId: {},
-          threadShellById: {},
-          threadSessionById: {},
-          threadTurnStateById: {},
-          messageIdsByThreadId: {},
-          messageByThreadId: {},
-          activityIdsByThreadId: {
-            [thread1]: [older.id],
-            [thread2]: [newer.id],
-          },
-          activityByThreadId: {
-            [thread1]: { [older.id]: older },
-            [thread2]: { [newer.id]: newer },
-          },
-          proposedPlanIdsByThreadId: {},
-          proposedPlanByThreadId: {},
-          turnDiffIdsByThreadId: {},
-          turnDiffSummaryByThreadId: {},
-          sidebarThreadSummaryById: {},
-          bootstrapComplete: true,
-        },
-      },
-    });
-
-    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
-      ["5h", 55],
-      ["1h", 12],
-    ]);
-    expect(formatUsageWindowLabel(snapshot?.windows[0] ?? null)).toBe("5h");
-  });
-
-  it("filters global rate limits to the requested provider", () => {
-    const codex = makeActivity("activity-1", "account-rate-limits.updated", {
-      provider: "codex",
-      providerInstanceId: "codex",
-      rateLimits: {
-        primary: {
-          usedPercent: 12,
-          windowDurationMins: 300,
-        },
-      },
-    });
-    const claude = makeActivity("activity-2", "account-rate-limits.updated", {
-      provider: "claudeAgent",
-      providerInstanceId: "claudeAgent",
-      rateLimits: {
-        type: "rate_limit_event",
-        rate_limit_info: {
-          status: "allowed",
-          rateLimitType: "five_hour",
-          utilization: 0.66,
-        },
-      },
-    });
-    const thread1 = ThreadId.make("thread-1");
-    const thread2 = ThreadId.make("thread-2");
-    const state = {
-      activeEnvironmentId: null,
-      environmentStateById: {
-        env: {
-          projectIds: [],
-          projectById: {},
-          threadIds: [],
-          threadIdsByProjectId: {},
-          threadShellById: {},
-          threadSessionById: {},
-          threadTurnStateById: {},
-          messageIdsByThreadId: {},
-          messageByThreadId: {},
-          activityIdsByThreadId: {
-            [thread1]: [codex.id],
-            [thread2]: [claude.id],
-          },
-          activityByThreadId: {
-            [thread1]: { [codex.id]: codex },
-            [thread2]: { [claude.id]: claude },
-          },
-          proposedPlanIdsByThreadId: {},
-          proposedPlanByThreadId: {},
-          turnDiffIdsByThreadId: {},
-          turnDiffSummaryByThreadId: {},
-          sidebarThreadSummaryById: {},
-          bootstrapComplete: true,
-        },
-      },
-    };
-
-    const snapshot = deriveLatestAccountRateLimitsSnapshotFromState(state, {
-      provider: "claudeAgent",
-      providerInstanceId: "claudeAgent",
-    });
-
-    expect(snapshot?.provider).toBe("claudeAgent");
-    expect(snapshot?.windows[0]?.usedPercent).toBe(66);
-  });
-
-  it("drops windows whose reset has already passed", () => {
-    const now = Date.UTC(2026, 5, 17, 12, 0, 0);
-    const nowSeconds = Math.floor(now / 1000);
-
-    const snapshot = deriveLatestAccountRateLimitsSnapshot(
-      [
-        makeActivity("activity-1", "account-rate-limits.updated", {
-          provider: "codex",
-          rateLimits: {
-            primary: {
-              usedPercent: 95,
-              windowDurationMins: 60,
-              resetsAt: nowSeconds - 3600,
-            },
-            secondary: {
-              usedPercent: 30,
-              windowDurationMins: 10_080,
-              resetsAt: nowSeconds + 3600,
-            },
-          },
-        }),
-      ],
-      { now },
-    );
-
-    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
-      ["7d", 30],
-    ]);
-  });
-
-  it("falls back to an older non-expired window when the newest is expired", () => {
-    const now = Date.UTC(2026, 5, 17, 12, 0, 0);
-    const nowSeconds = Math.floor(now / 1000);
-
-    const snapshot = deriveLatestAccountRateLimitsSnapshot(
-      [
-        makeActivity("activity-old", "account-rate-limits.updated", {
-          provider: "claudeAgent",
-          providerInstanceId: "claudeAgent",
-          rateLimits: {
-            type: "rate_limit_event",
-            rate_limit_info: {
-              status: "allowed",
-              rateLimitType: "seven_day_opus",
-              utilization: 0.5,
-              resetsAt: nowSeconds + 86_400,
-            },
-          },
-        }),
-        makeActivity("activity-new", "account-rate-limits.updated", {
-          provider: "claudeAgent",
-          providerInstanceId: "claudeAgent",
-          rateLimits: {
-            type: "rate_limit_event",
-            rate_limit_info: {
-              status: "allowed_warning",
-              rateLimitType: "five_hour",
-              utilization: 0.95,
-              resetsAt: nowSeconds - 60,
-            },
-          },
-        }),
-      ],
-      { now },
-    );
-
-    expect(snapshot?.windows.map((window) => [window.label, window.usedPercent])).toEqual([
-      ["7d Opus", 50],
-    ]);
-  });
-
-  it("does not use unknown-provider limits when filtering to a selected provider", () => {
-    const snapshot = deriveLatestAccountRateLimitsSnapshot(
-      [
-        makeActivity("activity-1", "account-rate-limits.updated", {
-          rateLimits: {
-            primary: {
-              usedPercent: 12,
-              windowDurationMins: 300,
-            },
-          },
-        }),
-      ],
-      {
-        provider: "cursor",
-        providerInstanceId: "cursor",
-      },
-    );
-
-    expect(snapshot).toBeNull();
+    ).toBe("7d");
   });
 });
