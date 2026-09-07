@@ -14,19 +14,21 @@ For the manual merge that takes over from a failed run, use the `merge-upstream`
 
 Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](https://blacksmith.sh) runners (`runs-on: blacksmith-*`), an Expo/EAS account, Vercel, and Cloudflare/PlanetScale/Axiom credentials. None of the workflows below carry a `github.repository ==` guard, so on the fork they queue for a runner that never arrives instead of skipping. They are deleted here:
 
-| Deleted workflow                  | Why it cannot run on the fork                                                                                                    |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                          | Blacksmith runners; the fork has no CI.                                                                                          |
-| `release.yml`                     | Upstream's release pipeline; the fork ships via `pnpm dist:fork`.                                                                |
-| `deploy-relay.yml`                | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                |
-| `desktop-macos-preview.yml`       | Blacksmith macOS + Linux runners.                                                                                                |
-| `publish-aur.yml`                 | Blacksmith + `AUR_SSH_PRIVATE_KEY`; the fork does not publish to the AUR.                                                        |
-| `mobile-eas-preview.yml`          | Blacksmith + `EXPO_TOKEN`.                                                                                                       |
-| `mobile-eas-production.yml`       | Blacksmith + `EXPO_TOKEN`.                                                                                                       |
-| `mobile-fingerprint-check.yml`    | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                  |
-| `mobile-showcase-screenshots.yml` | Blacksmith macOS + Linux runners.                                                                                                |
-| `web-preview.yml`                 | Blacksmith + Vercel secrets.                                                                                                     |
-| `thread-transfer-report.yml`      | Triggers on `workflow_run` of `CI`, which the fork deleted. Its `.github/scripts/thread-transfer-report.*` helpers went with it. |
+| Deleted workflow                  | Why it cannot run on the fork                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                          | Blacksmith runners; the fork has no CI.                                                                                               |
+| `release.yml`                     | Upstream's release pipeline; the fork ships via `pnpm dist:fork`. Its `.github/scripts/check-nightly-release.*` helpers went with it. |
+| `deploy-relay.yml`                | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                     |
+| `desktop-macos-preview.yml`       | Blacksmith macOS + Linux runners.                                                                                                     |
+| `publish-aur.yml`                 | Blacksmith + `AUR_SSH_PRIVATE_KEY`; the fork does not publish to the AUR.                                                             |
+| `mobile-eas-preview.yml`          | Blacksmith + `EXPO_TOKEN`.                                                                                                            |
+| `mobile-eas-production.yml`       | Blacksmith + `EXPO_TOKEN`.                                                                                                            |
+| `mobile-fingerprint-check.yml`    | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                       |
+| `mobile-showcase-screenshots.yml` | Blacksmith macOS + Linux runners.                                                                                                     |
+| `web-preview.yml`                 | Blacksmith + Vercel secrets.                                                                                                          |
+| `thread-transfer-report.yml`      | Triggers on `workflow_run` of `CI`, which the fork deleted. Its `.github/scripts/thread-transfer-report.*` helpers went with it.      |
+| `windows-tests.yml`               | Blacksmith Windows runner (`blacksmith-8vcpu-windows-2025`).                                                                          |
+| `cursor-hygiene-webhook.yml`      | Needs `CURSOR_T3CODE_WEBHOOK_URL`/`_AUTH`, and forwards repo activity to upstream's Cursor endpoint.                                  |
 
 Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, and the fork's own `sync-upstream.yml`.
 

@@ -1,6 +1,13 @@
 import * as NodeChildProcess from "node:child_process";
+import * as NodePath from "node:path";
 
 import { desktopDir, resolveElectronLaunchCommand } from "./electron-launcher.mjs";
+
+NodeChildProcess.execFileSync(
+  process.execPath,
+  [NodePath.join(desktopDir, "scripts/build-browser-secret.mjs")],
+  { stdio: "inherit" },
+);
 
 const childEnv = { ...process.env };
 childEnv.T3CODE_DISABLE_AUTO_UPDATE ??= "1";
