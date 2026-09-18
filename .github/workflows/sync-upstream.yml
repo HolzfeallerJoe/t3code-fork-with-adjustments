@@ -100,6 +100,10 @@ jobs:
           .github/workflows/thread-transfer-report.yml
           .github/workflows/cursor-hygiene-webhook.yml
           .github/workflows/windows-tests.yml
+          .github/workflows/release-desktop.yml
+          .github/workflows/desktop-macos-preview-publish.yml
+          .github/scripts/stage-preview-bundle.py
+          .github/scripts/stage-preview-bundle.test.py
           .github/scripts/thread-transfer-report.cjs
           .github/scripts/thread-transfer-report.test.cjs
           .github/scripts/check-nightly-release.cjs

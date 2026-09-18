@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime/environment";
-import type { EnvironmentId, OrchestrationThreadActivity, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import {
   ChevronDownIcon,
   FolderGit2Icon,
@@ -9,7 +9,17 @@ import {
   HistoryIcon,
   ScaleIcon,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  type Ref,
+  memo,
+  useImperativeHandle,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   useComposerDraftModelState,
@@ -18,9 +28,9 @@ import {
 } from "../composerDraftStore";
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
 import { usePrimarySettings } from "../hooks/useSettings";
-import { deriveLatestContextWindowSnapshot } from "../lib/contextWindow";
+import type { ContextWindowSnapshot } from "../lib/contextWindow";
 import { deriveAccountRateLimitsSnapshot } from "../lib/usageLimits";
-import { useProject, useThread, useThreadShellsForProjectRefs } from "../state/entities";
+import { useProject, useThreadShell, useThreadShellsForProjectRefs } from "../state/entities";
 import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../state/server";
 import {
   type EnvMode,
@@ -34,7 +44,10 @@ import {
   resolvePreviousWorktreeSeed,
   shouldShowEnvironmentIndicator,
 } from "./BranchToolbar.logic";
-import { BranchToolbarBranchSelector } from "./BranchToolbarBranchSelector";
+import {
+  BranchToolbarBranchSelector,
+  type BranchToolbarBranchSelectorHandle,
+} from "./BranchToolbarBranchSelector";
 import { BranchToolbarEnvironmentSelector } from "./BranchToolbarEnvironmentSelector";
 import { BranchToolbarEnvModeSelector } from "./BranchToolbarEnvModeSelector";
 import { UsageLimitStrip } from "./UsageLimitStrip";
@@ -51,14 +64,18 @@ import {
 } from "./ui/menu";
 import { Separator } from "./ui/separator";
 import { ComposerSurface } from "./chat/ComposerSurface";
-import { composerFloatingLayerProps } from "./chat/composerEventScope";
+import { useComposerMenuProps } from "./chat/composerEventScope";
 import { measureRestingComposerControls } from "./chat/restingComposerControlsMeasurement";
 import { resolveRestingComposerControlsNaturalWidth } from "./composerFooterLayout";
 import { cn } from "~/lib/utils";
 
-const EMPTY_THREAD_ACTIVITIES: readonly OrchestrationThreadActivity[] = [];
+export interface BranchToolbarHandle {
+  openBranchPicker: () => void;
+  usePreviousWorktree: () => void;
+}
 
 interface BranchToolbarProps {
+  ref?: Ref<BranchToolbarHandle>;
   environmentId: EnvironmentId;
   threadId: ThreadId;
   showGitControls: boolean;
@@ -78,6 +95,8 @@ interface BranchToolbarProps {
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
   composerControlsHostRef?: (element: HTMLDivElement | null) => void;
   contextStripVisible?: boolean;
+  /** Derived from thread detail by ChatView; the toolbar itself only reads the shell. */
+  contextWindow: ContextWindowSnapshot | null;
 }
 
 interface MobileRunContextSelectorProps {
@@ -113,6 +132,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
   previousWorktreeLabel,
   onUsePreviousWorktree,
 }: MobileRunContextSelectorProps) {
+  const composerFloatingLayerProps = useComposerMenuProps();
   const activeEnvironment = useMemo(
     () => availableEnvironments?.find((env) => env.environmentId === environmentId) ?? null,
     [availableEnvironments, environmentId],
@@ -155,7 +175,7 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
       >
         <span
           data-composer-label-motion
-          className="block w-full min-w-0 max-w-[240px] origin-left truncate transition-[opacity,transform] duration-180 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-[compact]/composer-context:[transform:translateX(-0.25rem)_scaleX(0.95)] group-data-[compact]/composer-context:opacity-0 motion-reduce:transform-none motion-reduce:transition-opacity"
+          className="block w-full min-w-0 max-w-[240px] truncate transition-opacity duration-180 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-[compact]/composer-context:opacity-0 motion-reduce:transition-none"
         >
           {autoEnvironmentLabel ??
             (showEnvironmentIndicator ? (activeEnvironment?.label ?? "Run on") : workspaceLabel)}
@@ -181,6 +201,10 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
         render={<Button variant="ghost" size="xs" />}
         className="min-w-0 max-w-[48%] flex-initial justify-start font-normal text-muted-foreground/70 text-xs! hover:text-foreground/80"
         data-composer-context-control
+        data-composer-shortcut={[
+          showEnvironmentPicker && !envLocked ? "composer.host" : "",
+          !envModeLocked ? "composer.workspace" : "",
+        ].join(" ")}
       >
         {triggerContent}
         <ChevronDownIcon className="size-3 shrink-0 opacity-50" />
@@ -286,12 +310,12 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
  */
 const COMPOSER_CONTEXT_MOTION_DURATION_MS = 180;
 const COMPOSER_CONTEXT_MOTION_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
-const COMPOSER_CONTEXT_CONTROL_SELECTOR = "[data-composer-context-control]";
+const COMPOSER_CONTEXT_LABEL_SELECTOR = "[data-composer-label]";
 
 function useLabelsOverflow(element: HTMLDivElement | null): boolean {
   const [overflows, setOverflows] = useState(false);
-  const pendingControlRectsRef = useRef<Map<HTMLElement, DOMRect> | null>(null);
-  const controlAnimationsRef = useRef(new Map<HTMLElement, Animation>());
+  const pendingLabelRectsRef = useRef<Map<HTMLElement, DOMRect> | null>(null);
+  const labelAnimationsRef = useRef(new Map<HTMLElement, Animation>());
   // A render-synced mirror instead of useEffectEvent: the compiler memoizes
   // the event callback, which left observers reading the first render's null
   // element forever.
@@ -356,15 +380,9 @@ function useLabelsOverflow(element: HTMLDivElement | null): boolean {
       for (const inner of label.querySelectorAll<HTMLElement>("*")) {
         textWidth = Math.max(textWidth, inner.scrollWidth);
       }
-      if (compact) {
-        // Compact: the label is squeezed to zero width but keeps reporting
-        // the full width it would need when expanded.
-        needed += textWidth;
-      } else {
-        // Expanded: the label is in flow; only the clipped remainder is
-        // missing from the content sum.
-        needed += Math.max(0, textWidth - label.clientWidth);
-      }
+      // Subtract the visible width even during an animation. The content
+      // sum already includes it; only the hidden text needs reserving.
+      needed += Math.max(0, textWidth - label.getBoundingClientRect().width);
     }
     const nextOverflows = resolveContextStripLabelsCompact({
       compact,
@@ -372,9 +390,9 @@ function useLabelsOverflow(element: HTMLDivElement | null): boolean {
       availableWidth: available,
     });
     if (nextOverflows !== compact) {
-      pendingControlRectsRef.current = new Map(
-        Array.from(current.querySelectorAll<HTMLElement>(COMPOSER_CONTEXT_CONTROL_SELECTOR)).map(
-          (control) => [control, control.getBoundingClientRect()],
+      pendingLabelRectsRef.current = new Map(
+        Array.from(current.querySelectorAll<HTMLElement>(COMPOSER_CONTEXT_LABEL_SELECTOR)).map(
+          (label) => [label, label.getBoundingClientRect()],
         ),
       );
     }
@@ -382,28 +400,29 @@ function useLabelsOverflow(element: HTMLDivElement | null): boolean {
   }, []);
 
   useLayoutEffect(() => {
-    const previousRects = pendingControlRectsRef.current;
+    const previousRects = pendingLabelRectsRef.current;
     if (!previousRects) return;
-    pendingControlRectsRef.current = null;
+    pendingLabelRectsRef.current = null;
 
-    for (const animation of controlAnimationsRef.current.values()) {
+    for (const animation of labelAnimationsRef.current.values()) {
       animation.cancel();
     }
-    controlAnimationsRef.current.clear();
+    labelAnimationsRef.current.clear();
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    for (const [control, previousRect] of previousRects) {
-      if (!control.isConnected) continue;
-      const nextRect = control.getBoundingClientRect();
-      const deltaX = previousRect.left - nextRect.left;
-      const deltaY = previousRect.top - nextRect.top;
-      if (Math.abs(deltaX) < 0.5 && Math.abs(deltaY) < 0.5) continue;
+    for (const [label, previousRect] of previousRects) {
+      if (!label.isConnected) continue;
+      const nextWidth = label.getBoundingClientRect().width;
+      if (Math.abs(previousRect.width - nextWidth) < 0.5) continue;
 
-      const animation = control.animate(
+      // Animate the space occupied by each label so flex layout keeps the
+      // trailing controls anchored. Translating the whole group after its
+      // width snaps sends expanded text beyond the strip's right edge.
+      const animation = label.animate(
         [
-          { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
-          { transform: "translate3d(0, 0, 0)" },
+          { width: `${previousRect.width}px`, maxWidth: `${previousRect.width}px` },
+          { width: `${nextWidth}px`, maxWidth: `${nextWidth}px` },
         ],
         {
           duration: COMPOSER_CONTEXT_MOTION_DURATION_MS,
@@ -411,12 +430,12 @@ function useLabelsOverflow(element: HTMLDivElement | null): boolean {
           fill: "backwards",
         },
       );
-      controlAnimationsRef.current.set(control, animation);
+      labelAnimationsRef.current.set(label, animation);
       animation.addEventListener(
         "finish",
         () => {
-          if (controlAnimationsRef.current.get(control) === animation) {
-            controlAnimationsRef.current.delete(control);
+          if (labelAnimationsRef.current.get(label) === animation) {
+            labelAnimationsRef.current.delete(label);
           }
         },
         { once: true },
@@ -426,7 +445,7 @@ function useLabelsOverflow(element: HTMLDivElement | null): boolean {
 
   useEffect(
     () => () => {
-      for (const animation of controlAnimationsRef.current.values()) {
+      for (const animation of labelAnimationsRef.current.values()) {
         animation.cancel();
       }
     },
@@ -455,6 +474,7 @@ function useLabelsOverflow(element: HTMLDivElement | null): boolean {
 }
 
 export const BranchToolbar = memo(function BranchToolbar({
+  ref,
   environmentId,
   threadId,
   showGitControls,
@@ -474,7 +494,9 @@ export const BranchToolbar = memo(function BranchToolbar({
   onEnvironmentChange,
   composerControlsHostRef,
   contextStripVisible = true,
+  contextWindow,
 }: BranchToolbarProps) {
+  const branchSelectorRef = useRef<BranchToolbarBranchSelectorHandle>(null);
   const threadRef = useMemo(
     () => scopeThreadRef(environmentId, threadId),
     [environmentId, threadId],
@@ -484,7 +506,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   const draftThread = useComposerDraftStore((store) =>
     draftId ? store.getDraftSession(draftId) : store.getDraftThreadByRef(threadRef),
   );
-  const serverThread = useThread(threadRef, { waitForShell: draftThread !== null });
+  const serverThread = useThreadShell(threadRef);
   const setDraftThreadContext = useComposerDraftStore((store) => store.setDraftThreadContext);
   const activeProjectRef = serverThread
     ? scopeProjectRef(serverThread.environmentId, serverThread.projectId)
@@ -537,6 +559,25 @@ export const BranchToolbar = memo(function BranchToolbar({
     });
   }, [activeProjectRef, draftId, previousWorktreeSeed, setDraftThreadContext, threadRef]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      openBranchPicker: () => branchSelectorRef.current?.open(),
+      usePreviousWorktree: () => {
+        if (!showGitControls || !canUsePreviousWorktree || !previousWorktreeSeed) return;
+        onUsePreviousWorktree();
+        onComposerFocusRequest?.();
+      },
+    }),
+    [
+      canUsePreviousWorktree,
+      onComposerFocusRequest,
+      onUsePreviousWorktree,
+      previousWorktreeSeed,
+      showGitControls,
+    ],
+  );
+
   const showEnvironmentPicker = Boolean(
     availableEnvironments && availableEnvironments.length > 1 && onEnvironmentChange,
   );
@@ -549,11 +590,6 @@ export const BranchToolbar = memo(function BranchToolbar({
   const [stripElement, setStripElement] = useState<HTMLDivElement | null>(null);
   const labelsOverflow = useLabelsOverflow(stripElement);
   const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
-  const threadActivities = serverThread?.activities;
-  const activeContextWindow = useMemo(
-    () => deriveLatestContextWindowSnapshot(threadActivities ?? EMPTY_THREAD_ACTIVITIES),
-    [threadActivities],
-  );
   const environmentProviders =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const activeRateLimits = useMemo(
@@ -661,6 +697,7 @@ export const BranchToolbar = memo(function BranchToolbar({
 
       {showGitControls ? (
         <BranchToolbarBranchSelector
+          ref={branchSelectorRef}
           className="min-w-0 flex-initial justify-end @3xl/composer-surface:ml-auto"
           environmentId={environmentId}
           threadId={threadId}
@@ -678,7 +715,7 @@ export const BranchToolbar = memo(function BranchToolbar({
 
       <UsageLimitStrip
         className="ml-auto hidden shrink-0 sm:flex"
-        contextWindow={activeContextWindow}
+        contextWindow={contextWindow}
         rateLimits={activeRateLimits}
         usageLimitDisplayMode={usageLimitDisplayMode}
       />

@@ -29,6 +29,8 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `thread-transfer-report.yml`      | Triggers on `workflow_run` of `CI`, which the fork deleted. Its `.github/scripts/thread-transfer-report.*` helpers went with it.      |
 | `windows-tests.yml`               | Blacksmith Windows runner (`blacksmith-8vcpu-windows-2025`).                                                                          |
 | `cursor-hygiene-webhook.yml`      | Needs `CURSOR_T3CODE_WEBHOOK_URL`/`_AUTH`, and forwards repo activity to upstream's Cursor endpoint.                                  |
+| `release-desktop.yml`             | Reusable `workflow_call` job of the deleted `release.yml`; needs Apple and Azure signing secrets.                                     |
+| `desktop-macos-preview-publish.yml` | Runs after the deleted `desktop-macos-preview.yml`; Blacksmith + Apple signing secrets. Its `.github/scripts/stage-preview-bundle.*` helpers went with it. |
 
 Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, and the fork's own `sync-upstream.yml`.
 
