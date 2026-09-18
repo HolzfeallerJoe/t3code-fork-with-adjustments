@@ -11,7 +11,7 @@ type ForkUpdateBridge = Pick<DesktopBridge, "getForkUpdateState" | "onForkUpdate
 
 const INITIAL_STATE_READ_ATTEMPT_COUNT = 3;
 
-export class ForkUpdateStateReadError extends Schema.TaggedErrorClass<ForkUpdateStateReadError>()(
+export class ForkUpdateStateReadError extends Schema.TaggedError<ForkUpdateStateReadError>()(
   "ForkUpdateStateReadError",
   {
     attemptCount: Schema.Number,
