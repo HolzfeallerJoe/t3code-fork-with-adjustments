@@ -33,7 +33,7 @@ export function SidebarForkUpdatePill() {
   return (
     <div className="flex flex-col gap-1">
       {isSyncConflict ? (
-        <Alert variant="warning" className="rounded-2xl border-warning/40 bg-warning/8 text-xs">
+        <Alert variant="warning">
           <AlertTriangleIcon className="size-4" />
           <AlertTitle>{title}</AlertTitle>
           <AlertDescription>
@@ -52,19 +52,20 @@ export function SidebarForkUpdatePill() {
         </Alert>
       ) : (
         <div className="group/fork-update relative flex min-h-7 w-full items-center rounded-lg bg-accent/80 text-xs font-medium text-accent-foreground">
-          <div className="pointer-events-none absolute inset-0 rounded-lg transition-colors group-has-[button.fork-main:hover]/fork-update:bg-accent" />
+          <div className="pointer-events-none absolute inset-0 rounded-lg transition-colors group-has-[[data-fork-main]:hover]/fork-update:bg-accent" />
           <Tooltip>
             <TooltipTrigger
               render={
                 <div
-                  className="fork-main relative flex flex-1 flex-col gap-0.5 px-2.5 py-1.5"
+                  data-fork-main
+                  className="relative flex flex-1 flex-col gap-0.5 px-2.5 py-1.5"
                   aria-label={tooltip}
                 >
                   <div className="flex items-center gap-1.5">
                     <GitForkIcon className="size-3.5" />
                     <span className="font-medium">{title}</span>
                   </div>
-                  <span className="text-[10px] leading-tight text-accent-foreground/70">
+                  <span className="text-3xs leading-tight text-accent-foreground/70">
                     Rebuild and install from your fork
                   </span>
                 </div>
@@ -75,7 +76,7 @@ export function SidebarForkUpdatePill() {
                 <span className="font-medium">{title}</span>
                 <span className="text-xs text-muted-foreground">{message}</span>
                 {state.latestCommit && (
-                  <span className="font-mono text-[10px] text-muted-foreground">
+                  <span className="font-mono text-3xs text-muted-foreground">
                     Latest: {state.latestCommit.slice(0, 12)}
                   </span>
                 )}

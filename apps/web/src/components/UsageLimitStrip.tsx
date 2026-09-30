@@ -40,7 +40,7 @@ function UsageLimitItem({ icon: Icon, label, value, exhausted = false }: UsageLi
   return (
     <span
       className={cn(
-        "inline-flex h-6 min-w-0 items-center gap-1.5 rounded-md border border-border/50 bg-background/55 px-1.5 text-[11px] leading-none text-muted-foreground",
+        "inline-flex h-6 min-w-0 items-center gap-1.5 rounded-md border border-border/50 bg-background/55 px-1.5 text-2xs leading-none text-muted-foreground",
         exhausted && "border-destructive/35 bg-destructive/10 text-destructive",
       )}
     >
@@ -128,9 +128,9 @@ export function UsageLimitStrip({
           </button>
         }
       />
-      <PopoverPopup tooltipStyle side="top" align="end" className="w-max max-w-none px-3 py-2">
+      <PopoverPopup tooltipStyle side="top" align="end" className="w-max max-w-none">
         <div className="space-y-1.5 leading-tight">
-          <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <div className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
             Usage
           </div>
           <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 text-xs">
