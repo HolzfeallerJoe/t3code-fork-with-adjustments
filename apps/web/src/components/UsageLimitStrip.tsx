@@ -1,11 +1,16 @@
+import { useAtomValue } from "@effect/atom-react";
+import type { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
 import { CalendarDaysIcon, Clock3Icon, GaugeIcon } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
 
+import { type ComposerThreadTarget, useComposerDraftModelState } from "../composerDraftStore";
+import { usePrimarySettings } from "../hooks/useSettings";
 import { type ContextWindowSnapshot, formatContextWindowTokens } from "../lib/contextWindow";
 import {
   type AccountRateLimitsSnapshot,
   type UsageLimitWindowSnapshot,
+  deriveAccountRateLimitsSnapshot,
   formatUsageLimitChipValue,
   formatUsageLimitReset,
   formatUsageLimitTooltipValue,
@@ -13,6 +18,7 @@ import {
   isUsageLimitWindowExhausted,
 } from "../lib/usageLimits";
 import { cn } from "../lib/utils";
+import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../state/server";
 import { Popover, PopoverPopup, PopoverTrigger } from "./ui/popover";
 
 interface UsageLimitStripProps {
@@ -165,5 +171,43 @@ export function UsageLimitStrip({
         </div>
       </PopoverPopup>
     </Popover>
+  );
+}
+
+/**
+ * The composer toolbar's strip: limits for the instance the composer would
+ * send to, falling back to the thread's own instance.
+ */
+export function ComposerUsageLimitStrip({
+  environmentId,
+  composerDraftTarget,
+  threadProviderInstanceId,
+  contextWindow,
+  className,
+}: {
+  environmentId: EnvironmentId;
+  composerDraftTarget: ComposerThreadTarget;
+  threadProviderInstanceId: ProviderInstanceId | null;
+  contextWindow: ContextWindowSnapshot | null;
+  className: string;
+}) {
+  const composerProvider = useComposerDraftModelState(composerDraftTarget).activeProvider;
+  const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
+  const providers =
+    useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
+  const rateLimits = useMemo(
+    () =>
+      deriveAccountRateLimitsSnapshot(providers, {
+        providerInstanceId: composerProvider ?? threadProviderInstanceId,
+      }),
+    [providers, composerProvider, threadProviderInstanceId],
+  );
+  return (
+    <UsageLimitStrip
+      className={className}
+      contextWindow={contextWindow}
+      rateLimits={rateLimits}
+      usageLimitDisplayMode={usageLimitDisplayMode}
+    />
   );
 }

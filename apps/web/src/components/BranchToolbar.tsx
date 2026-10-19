@@ -1,4 +1,3 @@
-import { useAtomValue } from "@effect/atom-react";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import { readLocalApi } from "../localApi";
 import { stackedThreadToast, toastManager } from "./ui/toast";
@@ -25,17 +24,10 @@ import {
   useState,
 } from "react";
 
-import {
-  useComposerDraftModelState,
-  useComposerDraftStore,
-  type DraftId,
-} from "../composerDraftStore";
+import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
 import { EnvironmentMachineIcon } from "./EnvironmentMachineIcon";
-import { usePrimarySettings } from "../hooks/useSettings";
 import type { ContextWindowSnapshot } from "../lib/contextWindow";
-import { deriveAccountRateLimitsSnapshot } from "../lib/usageLimits";
 import { useProject, useThreadShell, useThreadShellsForProjectRefs } from "../state/entities";
-import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../state/server";
 import {
   type EnvMode,
   type EnvironmentOption,
@@ -53,7 +45,7 @@ import {
 } from "./BranchToolbarBranchSelector";
 import { BranchToolbarEnvironmentSelector } from "./BranchToolbarEnvironmentSelector";
 import { BranchToolbarEnvModeSelector } from "./BranchToolbarEnvModeSelector";
-import { UsageLimitStrip } from "./UsageLimitStrip";
+import { ComposerUsageLimitStrip } from "./UsageLimitStrip";
 import { PreviousWorktreeItemContent } from "./PreviousWorktreeItemContent";
 import { ThreadDetailsControl } from "./chat/ThreadDetailsControl";
 import {
@@ -635,8 +627,6 @@ export const BranchToolbar = memo(function BranchToolbar({
     () => scopeThreadRef(environmentId, threadId),
     [environmentId, threadId],
   );
-  const composerDraftTarget = draftId ?? threadRef;
-  const composerModelState = useComposerDraftModelState(composerDraftTarget);
   const draftThread = useComposerDraftStore((store) =>
     draftId ? store.getDraftSession(draftId) : store.getDraftThreadByRef(threadRef),
   );
@@ -720,25 +710,6 @@ export const BranchToolbar = memo(function BranchToolbar({
   });
   const [stripElement, setStripElement] = useState<HTMLDivElement | null>(null);
   const labelsOverflow = useLabelsOverflow(stripElement);
-  const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
-  const environmentProviders =
-    useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
-  const activeRateLimits = useMemo(
-    () =>
-      deriveAccountRateLimitsSnapshot(environmentProviders, {
-        providerInstanceId:
-          composerModelState.activeProvider ??
-          serverThread?.providerInstanceId ??
-          serverThread?.modelSelection.instanceId ??
-          null,
-      }),
-    [
-      environmentProviders,
-      composerModelState.activeProvider,
-      serverThread?.modelSelection.instanceId,
-      serverThread?.providerInstanceId,
-    ],
-  );
 
   if (!hasActiveThread || !activeProject) return null;
 
@@ -895,11 +866,14 @@ export const BranchToolbar = memo(function BranchToolbar({
         />
       ) : null}
 
-      <UsageLimitStrip
+      <ComposerUsageLimitStrip
         className="ml-auto hidden shrink-0 sm:flex"
+        environmentId={environmentId}
+        composerDraftTarget={draftId ?? threadRef}
+        threadProviderInstanceId={
+          serverThread?.providerInstanceId ?? serverThread?.modelSelection.instanceId ?? null
+        }
         contextWindow={contextWindow}
-        rateLimits={activeRateLimits}
-        usageLimitDisplayMode={usageLimitDisplayMode}
       />
     </ComposerSurface.ContextStrip>
   );
