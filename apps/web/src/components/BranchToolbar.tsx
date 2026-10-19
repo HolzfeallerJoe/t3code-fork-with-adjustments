@@ -112,7 +112,7 @@ interface BranchToolbarProps {
   composerControlsHostRef?: (element: HTMLDivElement | null) => void;
   contextStripVisible?: boolean;
   /** Derived from thread detail by ChatView; the toolbar itself only reads the shell. */
-  contextWindow: ContextWindowSnapshot | null;
+  contextWindow?: ContextWindowSnapshot | null;
 }
 
 function showWorkspaceContextMenu(event: ReactMouseEvent, workspacePath: string) {
@@ -628,7 +628,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   onEnvironmentChange,
   composerControlsHostRef,
   contextStripVisible = true,
-  contextWindow,
+  contextWindow = null,
 }: BranchToolbarProps) {
   const branchSelectorRef = useRef<BranchToolbarBranchSelectorHandle>(null);
   const threadRef = useMemo(
@@ -728,7 +728,7 @@ export const BranchToolbar = memo(function BranchToolbar({
       deriveAccountRateLimitsSnapshot(environmentProviders, {
         providerInstanceId:
           composerModelState.activeProvider ??
-          serverThread?.session?.providerInstanceId ??
+          serverThread?.providerInstanceId ??
           serverThread?.modelSelection.instanceId ??
           null,
       }),
@@ -736,7 +736,7 @@ export const BranchToolbar = memo(function BranchToolbar({
       environmentProviders,
       composerModelState.activeProvider,
       serverThread?.modelSelection.instanceId,
-      serverThread?.session?.providerInstanceId,
+      serverThread?.providerInstanceId,
     ],
   );
 

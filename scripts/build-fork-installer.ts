@@ -12,14 +12,14 @@
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { isHostWindows } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Path from "effect/Path";
 import * as Stream from "effect/Stream";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 class ForkBuildError extends Data.TaggedError("ForkBuildError")<{
   readonly message: string;
@@ -119,7 +119,7 @@ const buildForkInstaller = Effect.gen(function* () {
 
   const extraArgs = process.argv.slice(2);
   const buildArgs = ["run", "dist:desktop:artifact", ...extraArgs];
-  const useShell = yield* isHostWindows;
+  const useShell = yield* HostProcess.isWindows;
 
   const child = yield* spawner.spawn(
     ChildProcess.make("pnpm", buildArgs, {

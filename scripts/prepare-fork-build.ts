@@ -19,14 +19,14 @@
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { isHostWindows } from "@t3tools/shared/hostProcess";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as Path from "effect/Path";
 import * as Stream from "effect/Stream";
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
+import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const RepoRoot = Effect.service(Path.Path).pipe(
   Effect.flatMap((path) => path.fromFileUrl(new URL("..", import.meta.url))),
@@ -136,7 +136,7 @@ const prepareForkBuild = Effect.gen(function* () {
   yield* Effect.log("To build with fork update support:");
   yield* Effect.log("");
 
-  if (yield* isHostWindows) {
+  if (yield* HostProcess.isWindows) {
     yield* Effect.log("  PowerShell:");
     yield* Effect.log(
       `    Get-Content .env.fork | ForEach-Object { $k,$v = $_ -split '=',2; Set-Item "env:$k" $v }; pnpm dist:desktop:win`,
