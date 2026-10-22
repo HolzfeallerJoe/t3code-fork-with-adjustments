@@ -4,7 +4,6 @@ import { CalendarDaysIcon, Clock3Icon, GaugeIcon } from "lucide-react";
 import { Fragment, useMemo } from "react";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
 
-import { type ComposerThreadTarget, useComposerDraftModelState } from "../composerDraftStore";
 import { usePrimarySettings } from "../hooks/useSettings";
 import { type ContextWindowSnapshot, formatContextWindowTokens } from "../lib/contextWindow";
 import {
@@ -174,33 +173,24 @@ export function UsageLimitStrip({
   );
 }
 
-/**
- * The composer toolbar's strip: limits for the instance the composer would
- * send to, falling back to the thread's own instance.
- */
+/** The composer toolbar's strip: limits for the instance the composer sends to. */
 export function ComposerUsageLimitStrip({
   environmentId,
-  composerDraftTarget,
-  threadProviderInstanceId,
+  providerInstanceId,
   contextWindow,
   className,
 }: {
   environmentId: EnvironmentId;
-  composerDraftTarget: ComposerThreadTarget;
-  threadProviderInstanceId: ProviderInstanceId | null;
+  providerInstanceId: ProviderInstanceId | null;
   contextWindow: ContextWindowSnapshot | null;
   className: string;
 }) {
-  const composerProvider = useComposerDraftModelState(composerDraftTarget).activeProvider;
   const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
   const providers =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const rateLimits = useMemo(
-    () =>
-      deriveAccountRateLimitsSnapshot(providers, {
-        providerInstanceId: composerProvider ?? threadProviderInstanceId,
-      }),
-    [providers, composerProvider, threadProviderInstanceId],
+    () => deriveAccountRateLimitsSnapshot(providers, { providerInstanceId }),
+    [providers, providerInstanceId],
   );
   return (
     <UsageLimitStrip

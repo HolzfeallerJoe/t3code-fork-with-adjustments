@@ -16,7 +16,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 
 | Deleted workflow                    | Why it cannot run on the fork                                                                                                                              |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                            | Blacksmith runners; the fork has no CI.                                                                                                                    |
+| `ci.yml`                            | Blacksmith runners; the fork has no CI. Its `.github/scripts/ci-changes.cjs` and `.github/actions/{ci-changes,setup-ci-deps}` helpers went with it.        |
 | `release.yml`                       | Upstream's release pipeline; the fork ships via `pnpm dist:fork`. Its `.github/scripts/check-nightly-release.*` helpers went with it.                      |
 | `deploy-relay.yml`                  | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                                          |
 | `desktop-macos-preview.yml`         | Blacksmith macOS + Linux runners.                                                                                                                          |

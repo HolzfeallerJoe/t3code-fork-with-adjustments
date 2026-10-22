@@ -110,6 +110,9 @@ jobs:
           .github/scripts/thread-transfer-report.test.cjs
           .github/scripts/check-nightly-release.cjs
           .github/scripts/check-nightly-release.test.cjs
+          .github/scripts/ci-changes.cjs
+          .github/actions/ci-changes/action.yml
+          .github/actions/setup-ci-deps/action.yml
           "
           echo "Merging stable release $LATEST_TAG..."
           BEFORE_SHA=$(git rev-parse HEAD)
