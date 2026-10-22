@@ -111,12 +111,18 @@ Report failures honestly, including any that were already failing before the mer
 
 ## 8. Land it
 
-Summarize before pushing:
+Once the merge and realign commits are in and verification shows no breakage the merge caused, push the current branch to origin without asking:
+
+```bash
+git push origin HEAD
+```
+
+Never force-push. If the push is rejected because origin moved, fetch and merge `origin/<branch>`, re-verify, and push again.
+
+Then summarize:
 
 - tag merged, and the diffstat of the merge;
 - every conflict, with which of the four outcomes it got;
 - fork changes adapted to upstream's new shape;
 - fork changes deleted, each with the upstream feature that replaced it;
 - verification results.
-
-`main` is the fork's published branch: **do not `git push origin main` until the user confirms.** If they want a safety net instead, park the resolved merge on `sync/<tag>` and push that branch for review.
