@@ -1,7 +1,7 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
 import { CalendarDaysIcon, Clock3Icon, GaugeIcon } from "lucide-react";
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
 
 import { usePrimarySettings } from "../hooks/useSettings";
@@ -188,10 +188,7 @@ export function ComposerUsageLimitStrip({
   const usageLimitDisplayMode = usePrimarySettings((settings) => settings.usageLimitDisplayMode);
   const providers =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
-  const rateLimits = useMemo(
-    () => deriveAccountRateLimitsSnapshot(providers, { providerInstanceId }),
-    [providers, providerInstanceId],
-  );
+  const rateLimits = deriveAccountRateLimitsSnapshot(providers, { providerInstanceId });
   return (
     <UsageLimitStrip
       className={className}
