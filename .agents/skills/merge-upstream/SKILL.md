@@ -43,7 +43,7 @@ Keep that file list. After the merge, every entry must be accounted for as **kep
 
 ## 3. Fork feature inventory
 
-As of `v0.1.1`, the fork owns these features. Files move; the intent is what must survive.
+As of `v0.1.2`, the fork owns these features. Files move; the intent is what must survive.
 
 | Feature                                                                 | Main files                                                                                                                                                                                                                                                                                                                                                                                                           | Intent                                                                                                                                                                                                                                                                       |
 | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -81,9 +81,9 @@ Never resolve by dropping fork behavior just to make the conflict disappear — 
 
 Standing rules:
 
-- **Deleted workflows stay deleted.** The fork removes every workflow it cannot run — the table in [`FORK.md`](../../../FORK.md#workflows-the-fork-does-not-run) is the authoritative list, mirrored by `IGNORE_PATHS` in `sync-upstream.yml`. Any of these that upstream edits comes back as a **modify/delete** conflict; `merge=ours` does not prevent that (it only covers content conflicts), so the resolution is always `git rm -f <path>`. Keep `issue-labels.yml`, `pr-size.yml`, and `pr-vouch.yml` — they run on stock runners with only `GITHUB_TOKEN`. If upstream adds a _new_ workflow, keep it only if it needs neither a `blacksmith-*` runner nor secrets the fork lacks; otherwise delete it with its helper scripts and add it to both the FORK.md table and `IGNORE_PATHS`.
+- **Deleted workflows stay deleted.** The fork removes every workflow it cannot run — the table in [`FORK.md`](../../../FORK.md#workflows-the-fork-does-not-run) is the authoritative list, mirrored by `IGNORE_PATHS` in `sync-upstream.yml`. Any of these that upstream edits comes back as a **modify/delete** conflict; `merge=ours` does not prevent that (it only covers content conflicts), so the resolution is always `git rm -f <path>`. Keep `issue-labels.yml`, `pr-size.yml`, and `pr-vouch.yml` — they run on stock runners with only `GITHUB_TOKEN`. If upstream adds a _new_ workflow, keep it only if it needs neither a `blacksmith-*` runner nor secrets the fork lacks; otherwise delete it with its helper scripts and add it to both the FORK.md table and `IGNORE_PATHS`. The same goes for a new `.github/scripts` helper that only parses a deleted workflow (precedent: `vercel-deployment-output.test.cjs` in v0.1.2). A helper that local tooling imports stays and stays out of `IGNORE_PATHS`, which pins paths to the fork's copy: `ci-changes.cjs` backs `vp run check:changed`.
 - `.github/workflows/sync-upstream.yml` is fork-only; keep the fork's version unless upstream's tooling changed in a way it must track.
-- Package manager is pnpm (`packageManager: pnpm@11.10.0`). Fork scripts shell out via pnpm; if upstream changes the package manager again, update `scripts/prepare-fork-build.ts` and `scripts/build-fork-installer.ts` to match (precedent: commit `ef91120b2`).
+- Package manager is pnpm (`packageManager: pnpm@12.14.0`). Fork scripts shell out via pnpm; if upstream changes the package manager again, update `scripts/prepare-fork-build.ts` and `scripts/build-fork-installer.ts` to match (precedent: commit `ef91120b2`).
 - On `pnpm-lock.yaml` conflicts, take upstream's file whole (`git checkout --theirs -- pnpm-lock.yaml`) and then run `pnpm install` to reconcile; never hand-merge the lockfile.
 - On conflicts in files the fork only touched for formatting, take upstream and re-apply nothing.
 
@@ -98,6 +98,8 @@ Land these as a follow-up commit, e.g. `Realign fork features with upstream <tag
 ## 7. Verify
 
 A whole-release merge is the explicit exception to AGENTS.md's "no repo-wide checks" rule — the merge touches the entire tree, so narrow checks prove nothing:
+
+If `pnpm tc` fails with `Cannot find module ...typescript@<old>...`, pnpm left stale workspace `node_modules/.bin` shims after a dependency swap: delete the shims that name the old version and rerun `pnpm install --offline`. `vp` is not on PATH in PowerShell; use `pnpm exec vp`.
 
 ```bash
 pnpm tc                 # repo-wide typecheck
