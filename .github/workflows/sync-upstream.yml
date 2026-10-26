@@ -98,7 +98,6 @@ jobs:
           .github/workflows/publish-aur.yml
           .github/workflows/web-preview.yml
           .github/workflows/thread-transfer-report.yml
-          .github/workflows/cursor-hygiene-webhook.yml
           .github/workflows/windows-tests.yml
           .github/workflows/release-desktop.yml
           .github/workflows/desktop-macos-preview-publish.yml
@@ -110,7 +109,7 @@ jobs:
           .github/scripts/thread-transfer-report.test.cjs
           .github/scripts/check-nightly-release.cjs
           .github/scripts/check-nightly-release.test.cjs
-          .github/scripts/ci-changes.cjs
+          .github/scripts/vercel-deployment-output.test.cjs
           .github/actions/ci-changes/action.yml
           .github/actions/setup-ci-deps/action.yml
           "
