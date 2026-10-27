@@ -31,8 +31,10 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `release-desktop.yml`               | Reusable `workflow_call` job of the deleted `release.yml`; needs Apple and Azure signing secrets.                                                                                         |
 | `desktop-macos-preview-publish.yml` | Runs after the deleted `desktop-macos-preview.yml`; Blacksmith + Apple signing secrets. Its `.github/scripts/stage-preview-bundle.*` helpers went with it.                                |
 | `mobile-android-apk.yml`            | Hourly cron on a Blacksmith runner + `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. Its `.github/scripts/mirror-play-apk.cjs` helper went with it.                                                   |
+| `relay-preview.yml`                 | Blacksmith + Cloudflare/PlanetScale/Axiom/Clerk secrets; deploys per-PR relay previews.                                                                                                   |
+| `relay-preview-cleanup.yml`         | Tears down the deleted `relay-preview.yml` deployments; same runners and secrets.                                                                                                         |
 
-Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, and the fork's own `sync-upstream.yml`.
+Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, and the fork's own `sync-upstream.yml`.
 
 **Consequence for syncing:** `merge=ours` in `.gitattributes` does _not_ protect a deleted file — git raises a modify/delete conflict regardless of the merge driver, as `release.yml` does on every sync that touches it. So whenever upstream edits any workflow in the table above, the daily sync will fail and want a manual merge whose resolution is always `git rm -f <path>`. That is the accepted cost of keeping the Actions tab clean. (The alternative, if the conflict churn ever outweighs it, is to restore the files and disable them per-repo under Actions → Workflows → Disable, which leaves no delete to conflict with.)
 
