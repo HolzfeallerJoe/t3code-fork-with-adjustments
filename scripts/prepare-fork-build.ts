@@ -1,20 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Prepares environment variables for fork update feature.
- * Run this before building the desktop installer to enable fork update notifications.
- *
- * Usage:
- *   pnpm prepare:fork-build
- *
- * This will:
- *   1. Detect your fork repo from git remote origin
- *   2. Get the current commit hash
- *   3. Write a .env.fork file with the necessary variables
- *
- * Then build with:
- *   - Windows: set /p x=<.env.fork && pnpm dist:desktop:win
- *   - Unix: export $(cat .env.fork | xargs) && pnpm dist:desktop:dmg
+ * Writes .env.fork (fork repo from `origin`, current commit) for building an installer by hand:
+ *   Windows: set /p x=<.env.fork && pnpm dist:desktop:win
+ *   Unix:    export $(cat .env.fork | xargs) && pnpm dist:desktop:dmg
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";

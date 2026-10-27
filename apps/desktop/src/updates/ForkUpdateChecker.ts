@@ -209,7 +209,7 @@ const make = Effect.gen(function* () {
           );
           return conflictIssue?.html_url ?? null;
         }),
-        Effect.catch(() => Effect.succeed(null)),
+        Effect.orElseSucceed(() => null),
       );
 
   const checkForForkUpdates = Effect.fn("desktop.forkUpdates.check")(function* (reason: string) {
@@ -276,15 +276,17 @@ const make = Effect.gen(function* () {
     );
   });
 
-  const startupCheck: Effect.Effect<void, never, Scope.Scope> = Effect.gen(function* () {
-    yield* Effect.sleep(FORK_UPDATE_STARTUP_DELAY).pipe(
-      Effect.andThen(checkForForkUpdates("startup")),
-      Effect.catchCause((cause) =>
-        logForkError("startup fork update check failed", { cause: Cause.pretty(cause) }),
-      ),
-      Effect.forkScoped,
-    );
-  }).pipe(Effect.withSpan("desktop.forkUpdates.startupCheck"));
+  const startupCheck: Effect.Effect<void, never, Scope.Scope> = Effect.sleep(
+    FORK_UPDATE_STARTUP_DELAY,
+  ).pipe(
+    Effect.andThen(checkForForkUpdates("startup")),
+    Effect.catchCause((cause) =>
+      logForkError("startup fork update check failed", { cause: Cause.pretty(cause) }),
+    ),
+    Effect.forkScoped,
+    Effect.asVoid,
+    Effect.withSpan("desktop.forkUpdates.startupCheck"),
+  );
 
   return ForkUpdateChecker.of({
     getState: Ref.get(updateStateRef),

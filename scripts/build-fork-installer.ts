@@ -1,13 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Builds a desktop installer with fork update support enabled.
- * This script automatically sets T3CODE_FORK_MODE, T3CODE_FORK_REPO, and T3CODE_COMMIT_HASH
- * before invoking the standard desktop artifact build.
- *
- * Usage:
- *   pnpm dist:fork              # Build for current platform
- *   pnpm dist:fork --arch x64   # With additional flags
+ * Wraps the standard desktop artifact build with T3CODE_FORK_MODE, T3CODE_FORK_REPO and
+ * T3CODE_COMMIT_HASH set, so the installer checks this fork's releases for updates.
+ * Extra flags pass through: `pnpm dist:fork --arch x64`.
  */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
