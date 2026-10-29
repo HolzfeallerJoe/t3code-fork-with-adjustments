@@ -93,6 +93,7 @@ jobs:
           .github/workflows/mobile-eas-preview.yml
           .github/workflows/mobile-eas-production.yml
           .github/workflows/mobile-fingerprint-check.yml
+          .github/workflows/mobile-fingerprint-label.yml
           .github/workflows/mobile-showcase-screenshots.yml
           .github/workflows/desktop-macos-preview.yml
           .github/workflows/publish-aur.yml

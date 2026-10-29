@@ -24,6 +24,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `mobile-eas-preview.yml`            | Blacksmith + `EXPO_TOKEN`.                                                                                                                                                                |
 | `mobile-eas-production.yml`         | Blacksmith + `EXPO_TOKEN`.                                                                                                                                                                |
 | `mobile-fingerprint-check.yml`      | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                                                                           |
+| `mobile-fingerprint-label.yml`      | Triggers on `workflow_run` of the deleted `mobile-fingerprint-check.yml`, so it can never fire.                                                                                           |
 | `mobile-showcase-screenshots.yml`   | Blacksmith macOS + Linux runners.                                                                                                                                                         |
 | `web-preview.yml`                   | Blacksmith + Vercel secrets. `.github/scripts/vercel-deployment-output.test.cjs`, which parses it and `release.yml`, went with it.                                                        |
 | `thread-transfer-report.yml`        | Triggers on `workflow_run` of `CI`, which the fork deleted. Its `.github/scripts/thread-transfer-report.*` helpers went with it.                                                          |
@@ -34,7 +35,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `relay-preview.yml`                 | Blacksmith + Cloudflare/PlanetScale/Axiom/Clerk secrets; deploys per-PR relay previews.                                                                                                   |
 | `relay-preview-cleanup.yml`         | Tears down the deleted `relay-preview.yml` deployments; same runners and secrets.                                                                                                         |
 
-Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, and the fork's own `sync-upstream.yml`.
+Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, `agent-context-budget.yml`, and the fork's own `sync-upstream.yml`.
 
 **Consequence for syncing:** `merge=ours` in `.gitattributes` does _not_ protect a deleted file — git raises a modify/delete conflict regardless of the merge driver, as `release.yml` does on every sync that touches it. So whenever upstream edits any workflow in the table above, the daily sync will fail and want a manual merge whose resolution is always `git rm -f <path>`. That is the accepted cost of keeping the Actions tab clean. (The alternative, if the conflict churn ever outweighs it, is to restore the files and disable them per-repo under Actions → Workflows → Disable, which leaves no delete to conflict with.)
 
