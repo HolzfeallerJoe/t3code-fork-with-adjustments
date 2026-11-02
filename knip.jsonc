@@ -34,6 +34,10 @@
         "sign-macos.ts",
         "smoke-desktop-app.ts",
         "verify-windows-desktop-artifact.ts",
+        // Fork: only the release and CI workflows the fork deletes (FORK.md) run these.
+        "build-cli-archive.ts",
+        "resolve-nightly-release.ts",
+        "smoke-cli-archive.ts",
       ],
       "ignoreDependencies": ["agent-device", "esbuild"],
       // The `t3` npm package's files: copied into the package, never imported.
@@ -87,7 +91,12 @@
     "apps/web": {
       // Worktree setup (scripts/setup-worktree.ts) runs this directly, and evidence
       // fixtures run under node.
-      "entry": ["scripts/warm-dep-cache.ts", "test/fixtures/**/*.mjs"],
+      // Fork: verify-built-boot.ts is run only by the CI and release workflows the fork deletes.
+      "entry": [
+        "scripts/warm-dep-cache.ts",
+        "scripts/verify-built-boot.ts",
+        "test/fixtures/**/*.mjs",
+      ],
       // UI component modules are copied and adapted as cohesive sets. Keep their
       // named subcomponents even before they have callers; the file audit still
       // reports an entire component module when nothing imports it.

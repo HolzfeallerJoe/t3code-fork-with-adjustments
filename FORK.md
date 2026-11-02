@@ -34,6 +34,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `mobile-android-apk.yml`            | Hourly cron on a Blacksmith runner + `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. Its `.github/scripts/mirror-play-apk.cjs` helper went with it.                                                   |
 | `relay-preview.yml`                 | Blacksmith + Cloudflare/PlanetScale/Axiom/Clerk secrets; deploys per-PR relay previews.                                                                                                   |
 | `relay-preview-cleanup.yml`         | Tears down the deleted `relay-preview.yml` deployments; same runners and secrets.                                                                                                         |
+| `mobile-eas-preview-fork.yml`       | Blacksmith + `EXPO_PREVIEW_TOKEN`; `pull_request_target` EAS previews for fork PRs.                                                                                                       |
 
 Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, `agent-context-budget.yml`, and the fork's own `sync-upstream.yml`.
 

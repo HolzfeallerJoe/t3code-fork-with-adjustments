@@ -105,6 +105,7 @@ jobs:
           .github/workflows/mobile-android-apk.yml
           .github/workflows/relay-preview.yml
           .github/workflows/relay-preview-cleanup.yml
+          .github/workflows/mobile-eas-preview-fork.yml
           .github/scripts/mirror-play-apk.cjs
           .github/scripts/stage-preview-bundle.py
           .github/scripts/stage-preview-bundle.test.py

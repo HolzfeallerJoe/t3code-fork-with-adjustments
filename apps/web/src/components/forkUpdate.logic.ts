@@ -50,8 +50,3 @@ export function getForkUpdateTooltip(state: ForkUpdateState): string {
   }
   return "Fork update checking disabled";
 }
-
-export function canCheckForkUpdate(state: ForkUpdateState | null): boolean {
-  if (!state || !state.enabled) return false;
-  return state.status !== "checking" && state.status !== "disabled";
-}

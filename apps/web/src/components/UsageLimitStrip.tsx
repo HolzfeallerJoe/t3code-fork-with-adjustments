@@ -74,7 +74,7 @@ function iconForWindow(window: UsageLimitWindowSnapshot) {
   return GaugeIcon;
 }
 
-export function UsageLimitStrip({
+function UsageLimitStrip({
   contextWindow,
   rateLimits,
   usageLimitDisplayMode = "remaining",

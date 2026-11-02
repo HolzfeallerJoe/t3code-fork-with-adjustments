@@ -20,11 +20,7 @@ import * as IpcChannels from "../ipc/channels.ts";
 
 const FORK_UPDATE_STARTUP_DELAY = "10 seconds";
 
-export class ForkUpdateCheckError extends Data.TaggedError("ForkUpdateCheckError")<{
-  readonly message: string;
-}> {}
-
-export class ForkUpdateFetchError extends Data.TaggedError("ForkUpdateFetchError")<{
+class ForkUpdateFetchError extends Data.TaggedError("ForkUpdateFetchError")<{
   readonly message: string;
 }> {}
 

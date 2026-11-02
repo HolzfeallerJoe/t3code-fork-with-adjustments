@@ -32,7 +32,7 @@ function getForkUpdateBridge(): ForkUpdateBridge | undefined {
   return bridge;
 }
 
-export function createForkUpdateStateAtom(getBridge: () => ForkUpdateBridge | undefined) {
+function createForkUpdateStateAtom(getBridge: () => ForkUpdateBridge | undefined) {
   const updates = Stream.callback<ForkUpdateState | null>((queue) =>
     Effect.gen(function* () {
       const bridge = getBridge();
