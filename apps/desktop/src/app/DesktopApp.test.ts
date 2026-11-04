@@ -45,6 +45,7 @@ import * as DesktopShellEnvironment from "../shell/DesktopShellEnvironment.ts";
 import * as DesktopSnapShot from "../snapShot/DesktopSnapShot.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
+import * as ForkUpdateChecker from "../updates/ForkUpdateChecker.ts";
 import * as DesktopApplicationMenu from "../window/DesktopApplicationMenu.ts";
 import * as DesktopWindow from "../window/DesktopWindow.ts";
 import * as DesktopWslBackend from "../wsl/DesktopWslBackend.ts";
@@ -184,6 +185,9 @@ it.effect(
           Effect.provideService(DesktopRendererHistory.DesktopRendererHistory, {
             shutdown: Effect.void,
           } as DesktopRendererHistory.DesktopRendererHistory["Service"]),
+          Effect.provideService(ForkUpdateChecker.ForkUpdateChecker, {
+            configure: Effect.void,
+          } as unknown as ForkUpdateChecker.ForkUpdateChecker["Service"]),
         );
       const app = yield* runApp.pipe(
         Effect.provide(
