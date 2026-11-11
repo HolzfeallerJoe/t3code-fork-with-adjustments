@@ -442,7 +442,7 @@ export function resolveAppModelSelectionState(
       model,
       models: entry.models,
       modelOptions,
-      planModeEnabled: settings.planModeEnabled || selectsPlanAgent(selection.options),
+      includePlanAgent: selectsPlanAgent(selection.options),
     });
 
     return createModelSelection(entry.instanceId, model, modelOptionsForDispatch);
