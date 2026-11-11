@@ -1,7 +1,6 @@
 import type { ForkUpdateCheckResult, ForkUpdateState, ForkUpdateStatus } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
-import * as Data from "effect/Data";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -20,9 +19,11 @@ import * as IpcChannels from "../ipc/channels.ts";
 
 const FORK_UPDATE_STARTUP_DELAY = "10 seconds";
 
-class ForkUpdateFetchError extends Data.TaggedError("ForkUpdateFetchError")<{
-  readonly message: string;
-}> {}
+class ForkUpdateFetchError extends Schema.TaggedError<ForkUpdateFetchError>()(
+  "ForkUpdateFetchError",
+  { message: Schema.String },
+) {}
+const isForkUpdateFetchError = Schema.is(ForkUpdateFetchError);
 
 const GitHubCommitResponse = Schema.Struct({
   sha: Schema.String,
@@ -180,7 +181,7 @@ const make = Effect.gen(function* () {
       Effect.mapError(
         (error) =>
           new ForkUpdateFetchError({
-            message: error instanceof ForkUpdateFetchError ? error.message : String(error),
+            message: isForkUpdateFetchError(error) ? error.message : String(error),
           }),
       ),
     );

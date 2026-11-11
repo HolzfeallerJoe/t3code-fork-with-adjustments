@@ -21,7 +21,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `deploy-relay.yml`                  | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                                                                         |
 | `desktop-macos-preview.yml`         | Blacksmith macOS + Linux runners.                                                                                                                                                         |
 | `publish-aur.yml`                   | Blacksmith + `AUR_SSH_PRIVATE_KEY`; the fork does not publish to the AUR.                                                                                                                 |
-| `mobile-eas-preview.yml`            | Blacksmith + `EXPO_TOKEN`.                                                                                                                                                                |
+| `mobile-eas-preview.yml`            | Blacksmith + `EXPO_TOKEN`. Its `.github/scripts/mobile-preview-comment.*` helpers (shared with `mobile-eas-preview-fork.yml`) went with it.                                               |
 | `mobile-eas-production.yml`         | Blacksmith + `EXPO_TOKEN`.                                                                                                                                                                |
 | `mobile-fingerprint-check.yml`      | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                                                                           |
 | `mobile-fingerprint-label.yml`      | Triggers on `workflow_run` of the deleted `mobile-fingerprint-check.yml`, so it can never fire.                                                                                           |
@@ -35,6 +35,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `relay-preview.yml`                 | Blacksmith + Cloudflare/PlanetScale/Axiom/Clerk secrets; deploys per-PR relay previews.                                                                                                   |
 | `relay-preview-cleanup.yml`         | Tears down the deleted `relay-preview.yml` deployments; same runners and secrets.                                                                                                         |
 | `mobile-eas-preview-fork.yml`       | Blacksmith + `EXPO_PREVIEW_TOKEN`; `pull_request_target` EAS previews for fork PRs.                                                                                                       |
+| `mobile-dev-client.yml`             | Blacksmith + `T3_TASK_CACHE_READ_TOKEN`/`T3_NATIVE_CLIENT_WRITE_TOKEN`; `vp run mobile:install` dispatches it on `pingdotgg/t3code`, never here.                                          |
 
 Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, `agent-context-budget.yml`, and the fork's own `sync-upstream.yml`.
 

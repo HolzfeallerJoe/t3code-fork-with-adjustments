@@ -5,7 +5,8 @@ import { Fragment } from "react";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
 
 import { usePrimarySettings } from "../hooks/useSettings";
-import { type ContextWindowSnapshot, formatContextWindowTokens } from "../lib/contextWindow";
+import type { ContextWindowSnapshot } from "@t3tools/client-runtime/state/context-window";
+import { formatContextWindowTokens } from "../lib/contextWindow";
 import {
   type AccountRateLimitsSnapshot,
   type UsageLimitWindowSnapshot,
