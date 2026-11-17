@@ -117,6 +117,8 @@ jobs:
           .github/scripts/vercel-deployment-output.test.cjs
           .github/scripts/mobile-preview-comment.cjs
           .github/scripts/mobile-preview-comment.test.cjs
+          .github/scripts/mobile-ios-preview-record.cjs
+          .github/scripts/mobile-ios-preview-record.test.cjs
           .github/actions/ci-changes/action.yml
           .github/actions/setup-ci-deps/action.yml
           "

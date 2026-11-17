@@ -21,7 +21,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `deploy-relay.yml`                  | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                                                                         |
 | `desktop-macos-preview.yml`         | Blacksmith macOS + Linux runners.                                                                                                                                                         |
 | `publish-aur.yml`                   | Blacksmith + `AUR_SSH_PRIVATE_KEY`; the fork does not publish to the AUR.                                                                                                                 |
-| `mobile-eas-preview.yml`            | Blacksmith + `EXPO_TOKEN`. Its `.github/scripts/mobile-preview-comment.*` helpers (shared with `mobile-eas-preview-fork.yml`) went with it.                                               |
+| `mobile-eas-preview.yml`            | Blacksmith + `EXPO_TOKEN`. Its `.github/scripts/{mobile-preview-comment,mobile-ios-preview-record}.*` helpers (shared with `mobile-eas-preview-fork.yml`) went with it.                   |
 | `mobile-eas-production.yml`         | Blacksmith + `EXPO_TOKEN`.                                                                                                                                                                |
 | `mobile-fingerprint-check.yml`      | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                                                                           |
 | `mobile-fingerprint-label.yml`      | Triggers on `workflow_run` of the deleted `mobile-fingerprint-check.yml`, so it can never fire.                                                                                           |
@@ -37,7 +37,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `mobile-eas-preview-fork.yml`       | Blacksmith + `EXPO_PREVIEW_TOKEN`; `pull_request_target` EAS previews for fork PRs.                                                                                                       |
 | `mobile-dev-client.yml`             | Blacksmith + `T3_TASK_CACHE_READ_TOKEN`/`T3_NATIVE_CLIENT_WRITE_TOKEN`; `vp run mobile:install` dispatches it on `pingdotgg/t3code`, never here.                                          |
 
-Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, `agent-context-budget.yml`, and the fork's own `sync-upstream.yml`.
+Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `issue-vouch.yml`, `pr-limits.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, `agent-context-budget.yml`, and the fork's own `sync-upstream.yml`.
 
 **Consequence for syncing:** `merge=ours` in `.gitattributes` does _not_ protect a deleted file — git raises a modify/delete conflict regardless of the merge driver, as `release.yml` does on every sync that touches it. So whenever upstream edits any workflow in the table above, the daily sync will fail and want a manual merge whose resolution is always `git rm -f <path>`. That is the accepted cost of keeping the Actions tab clean. (The alternative, if the conflict churn ever outweighs it, is to restore the files and disable them per-repo under Actions → Workflows → Disable, which leaves no delete to conflict with.)
 
