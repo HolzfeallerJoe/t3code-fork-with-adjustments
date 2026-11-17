@@ -107,7 +107,7 @@ pnpm fmt:check
 pnpm lint
 ```
 
-Then run the fork-owned tests directly, e.g. `apps/web/src/lib/usageLimits.test.ts`, `apps/web/src/modelSelection.test.ts`, `packages/shared/src/serverSettings.test.ts`, `apps/desktop/src/updates/DesktopUpdates.test.ts`, `apps/desktop/src/settings/DesktopClientSettings.test.ts`. On Windows, `DesktopClientSettings`' symlink test and `DesktopUpdates`' Linux `.deb` test fail on path separators in upstream code; that is not merge breakage.
+Then run the fork-owned tests directly, e.g. `apps/web/src/lib/usageLimits.test.ts`, `apps/web/src/modelSelection.test.ts`, `packages/shared/src/serverSettings.test.ts`, `apps/desktop/src/updates/DesktopUpdates.test.ts`, `apps/desktop/src/settings/DesktopClientSettings.test.ts`. On Windows, `DesktopClientSettings`' symlink test and `DesktopUpdates`' Linux `.deb` and two update-restart-marker tests (since v0.1.10) fail on path separators in upstream code; that is not merge breakage.
 
 Report failures honestly, including any that were already failing before the merge (check with `git stash`/`git worktree` on the pre-merge commit if unsure).
 
