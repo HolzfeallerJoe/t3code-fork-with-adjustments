@@ -1,5 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ProviderInstanceId } from "@t3tools/contracts";
+import { T, useGT, useMessages } from "gt-react";
 import { CalendarDaysIcon, Clock3Icon, GaugeIcon } from "lucide-react";
 import { Fragment } from "react";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
@@ -81,6 +82,8 @@ function UsageLimitStrip({
   usageLimitDisplayMode = "remaining",
   className,
 }: UsageLimitStripProps) {
+  const gt = useGT();
+  const messages = useMessages();
   const contextPercent = formatContextPercentage(contextWindow?.usedPercentage ?? null);
   const contextValue =
     contextPercent ?? (contextWindow ? formatContextWindowTokens(contextWindow.usedTokens) : null);
@@ -94,12 +97,13 @@ function UsageLimitStrip({
   }
 
   const summaries = [
-    hasContextWindow ? `Context ${contextValue}` : null,
+    hasContextWindow ? gt("Context {value}", { value: contextValue }) : null,
     ...visibleWindows.map(
       (window) =>
-        `${formatUsageWindowLabel(window)} ${formatUsageLimitTooltipValue(
+        `${formatUsageWindowLabel(window, messages)} ${formatUsageLimitTooltipValue(
           window,
           usageLimitDisplayMode,
+          messages,
         )}`,
     ),
   ].filter(Boolean);
@@ -117,16 +121,20 @@ function UsageLimitStrip({
               "min-w-0 items-center gap-1 rounded-lg text-left transition-opacity hover:opacity-85",
               className,
             )}
-            aria-label={`Usage. ${summaries.join(". ")}.`}
+            aria-label={gt("Usage. {summary}.", { summary: summaries.join(". ") })}
           >
             {hasContextWindow ? (
-              <UsageLimitItem icon={GaugeIcon} label="Ctx" value={contextValue} />
+              <UsageLimitItem
+                icon={GaugeIcon}
+                label={gt("Ctx", { $context: "abbreviation of context window" })}
+                value={contextValue}
+              />
             ) : null}
             {visibleWindows.map((window) => (
               <UsageLimitItem
                 key={window.key}
                 icon={iconForWindow(window)}
-                label={formatUsageWindowLabel(window)}
+                label={formatUsageWindowLabel(window, messages)}
                 value={formatUsageLimitChipValue(window, usageLimitDisplayMode)}
                 exhausted={isUsageLimitWindowExhausted(window)}
               />
@@ -137,18 +145,22 @@ function UsageLimitStrip({
       <PopoverPopup tooltipStyle side="top" align="end" className="w-max max-w-none">
         <div className="space-y-1.5 leading-tight">
           <div className="text-2xs font-medium uppercase tracking-wider text-muted-foreground">
-            Usage
+            <T>Usage</T>
           </div>
           <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 text-xs">
             {hasContextWindow ? (
               <>
-                <span className="text-muted-foreground">Context</span>
+                <span className="text-muted-foreground">
+                  <T>Context</T>
+                </span>
                 <span className="text-right font-medium text-foreground">
                   {contextWindow.maxTokens !== null && contextPercent
                     ? `${contextPercent} - ${formatContextWindowTokens(
                         contextWindow.usedTokens,
                       )}/${formatContextWindowTokens(contextWindow.maxTokens ?? null)}`
-                    : `${formatContextWindowTokens(contextWindow.usedTokens)} tokens`}
+                    : gt("{tokens} tokens", {
+                        tokens: formatContextWindowTokens(contextWindow.usedTokens),
+                      })}
                 </span>
               </>
             ) : null}
@@ -156,10 +168,20 @@ function UsageLimitStrip({
               const reset = formatUsageLimitReset(window);
               return (
                 <Fragment key={window.key}>
-                  <span className="text-muted-foreground">{formatUsageWindowLabel(window)}</span>
+                  <span className="text-muted-foreground">
+                    {formatUsageWindowLabel(window, messages)}
+                  </span>
                   <span className="text-right font-medium text-foreground">
-                    {formatUsageLimitTooltipValue(window, usageLimitDisplayMode)}
-                    {reset ? ` - resets ${reset}` : ""}
+                    {reset
+                      ? gt("{value} - resets {reset}", {
+                          value: formatUsageLimitTooltipValue(
+                            window,
+                            usageLimitDisplayMode,
+                            messages,
+                          ),
+                          reset,
+                        })
+                      : formatUsageLimitTooltipValue(window, usageLimitDisplayMode, messages)}
                   </span>
                 </Fragment>
               );

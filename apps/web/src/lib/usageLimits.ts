@@ -4,6 +4,9 @@ import type {
   ServerProviderUsageWindow,
 } from "@t3tools/contracts";
 import type { UsageLimitDisplayMode } from "@t3tools/contracts/settings";
+import { msg } from "gt-react";
+
+import { m, type MessageResolver } from "../i18n/messages";
 
 export interface UsageLimitWindowSnapshot {
   readonly key: string;
@@ -135,16 +138,26 @@ export function formatUsageLimitChipValue(
 export function formatUsageLimitTooltipValue(
   window: UsageLimitWindowSnapshot | null,
   mode: UsageLimitDisplayMode = "remaining",
+  resolve: MessageResolver = m,
 ): string {
   const percent = formatUsageLimitPercent(window, mode);
   if (percent === "--") {
     return percent;
   }
-  return mode === "remaining" ? `${percent} left` : `${percent} used`;
+  return mode === "remaining"
+    ? resolve(msg("{percent} left", { percent }))
+    : resolve(msg("{percent} used", { percent }));
 }
 
-export function formatUsageWindowLabel(window: UsageLimitWindowSnapshot | null): string {
-  return window?.label ?? formatDurationLabel(window?.windowDurationMins ?? null) ?? "Limit";
+export function formatUsageWindowLabel(
+  window: UsageLimitWindowSnapshot | null,
+  resolve: MessageResolver = m,
+): string {
+  return (
+    window?.label ??
+    formatDurationLabel(window?.windowDurationMins ?? null) ??
+    resolve(msg("Limit", { $context: "usage limit window" }))
+  );
 }
 
 export function formatUsageLimitReset(window: UsageLimitWindowSnapshot | null): string | null {

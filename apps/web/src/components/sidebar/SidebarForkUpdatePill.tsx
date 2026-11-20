@@ -1,3 +1,4 @@
+import { T, useGT, useMessages, Var } from "gt-react";
 import { AlertTriangleIcon, ExternalLinkIcon, GitForkIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { isElectron } from "../../env";
@@ -13,16 +14,18 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 export function SidebarForkUpdatePill() {
   const state = useForkUpdateState();
+  const gt = useGT();
+  const messages = useMessages();
   const [dismissed, setDismissed] = useState(false);
 
   const visible = isElectron && shouldShowForkUpdateNotification(state) && !dismissed;
-  const tooltip = state ? getForkUpdateTooltip(state) : "Fork status";
+  const tooltip = state ? getForkUpdateTooltip(state, messages) : gt("Fork status");
 
   if (!visible || !state) return null;
 
   const isSyncConflict = state.status === "sync-conflict";
-  const title = getForkUpdateNotificationTitle(state);
-  const message = getForkUpdateNotificationMessage(state);
+  const title = getForkUpdateNotificationTitle(state, messages);
+  const message = getForkUpdateNotificationMessage(state, messages);
 
   const handleOpenConflictIssue = () => {
     if (state.syncConflictIssueUrl) {
@@ -45,7 +48,7 @@ export function SidebarForkUpdatePill() {
                 className="mt-1.5 flex items-center gap-1 text-warning hover:underline"
               >
                 <ExternalLinkIcon className="size-3" />
-                View issue
+                <T>View issue</T>
               </button>
             )}
           </AlertDescription>
@@ -66,7 +69,7 @@ export function SidebarForkUpdatePill() {
                     <span className="font-medium">{title}</span>
                   </div>
                   <span className="text-3xs leading-tight text-accent-foreground/70">
-                    Rebuild and install from your fork
+                    <T>Rebuild and install from your fork</T>
                   </span>
                 </div>
               }
@@ -77,7 +80,9 @@ export function SidebarForkUpdatePill() {
                 <span className="text-xs text-muted-foreground">{message}</span>
                 {state.latestCommit && (
                   <span className="font-mono text-3xs text-muted-foreground">
-                    Latest: {state.latestCommit.slice(0, 12)}
+                    <T>
+                      Latest: <Var>{state.latestCommit.slice(0, 12)}</Var>
+                    </T>
                   </span>
                 )}
               </div>
@@ -88,7 +93,7 @@ export function SidebarForkUpdatePill() {
               render={
                 <button
                   type="button"
-                  aria-label="Dismiss"
+                  aria-label={gt("Dismiss")}
                   className="mr-1.5 inline-flex size-5 items-center justify-center rounded-md text-accent-foreground/60 transition-colors hover:text-accent-foreground"
                   onClick={() => setDismissed(true)}
                 >
@@ -96,7 +101,9 @@ export function SidebarForkUpdatePill() {
                 </button>
               }
             />
-            <TooltipPopup side="top">Dismiss until next launch</TooltipPopup>
+            <TooltipPopup side="top">
+              <T>Dismiss until next launch</T>
+            </TooltipPopup>
           </Tooltip>
         </div>
       )}
