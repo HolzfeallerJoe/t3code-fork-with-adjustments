@@ -95,7 +95,7 @@ Walk the inventory from step 2/3 and check each feature's integration points aga
 
 Land these as a follow-up commit, e.g. `Realign fork features with upstream <tag> conventions`, so the merge commit stays a merge. The pre-commit hook lints every file the merge stages, so a fork file upstream also touched may need its fix inside the merge commit; do not skip the hook.
 
-Since v0.1.11 the web UI is localized (`docs/internals/i18n.md`) and `t3code/no-untranslated-copy` errors on fork copy that is not wrapped. New fork strings need `gt()`/`<T>`/`msg()` plus a translation in every `apps/web/src/i18n/translations/*.json`. On Windows, `gt generate` reorders whole catalogs and `pnpm i18n:check` cannot spawn `gt`: append only the new keys to the merged catalogs, and compare them by hand against `gt generate --config <temp config>` output.
+Since v0.1.11 the web UI is localized (`docs/internals/14_i18n.md`) and `t3code/no-untranslated-copy` errors on fork copy that is not wrapped. New fork strings need `gt()`/`<T>`/`msg()` plus a translation in every `apps/web/src/i18n/translations/*.json`. On Windows, `gt generate` reorders whole catalogs and `pnpm i18n:check` cannot spawn `gt`: append only the new keys to the merged catalogs, and compare them by hand against `gt generate --config <temp config>` output. Both sides append to the end of each catalog, so catalog conflicts are never real: rebuild each file as upstream's catalog plus the keys the fork added since the last tag (parse `git show <ref>:<path>` for both), run `vp fmt` on it, and confirm `git diff <tag> -- <catalog>` only appends.
 
 ## 7. Verify
 
