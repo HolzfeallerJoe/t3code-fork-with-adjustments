@@ -8,6 +8,11 @@ NodeChildProcess.execFileSync(
   [NodePath.join(desktopDir, "scripts/build-browser-secret.mjs")],
   { stdio: "inherit" },
 );
+NodeChildProcess.execFileSync(
+  process.execPath,
+  [NodePath.join(desktopDir, "scripts/build-apple-speech.mjs")],
+  { stdio: "inherit" },
+);
 
 const childEnv = { ...process.env };
 childEnv.T3CODE_DISABLE_AUTO_UPDATE ??= "1";

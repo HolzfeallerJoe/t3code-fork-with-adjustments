@@ -107,6 +107,8 @@ jobs:
           .github/workflows/relay-preview-cleanup.yml
           .github/workflows/mobile-eas-preview-fork.yml
           .github/workflows/mobile-dev-client.yml
+          .github/workflows/mobile-eas-preview-build.yml
+          .github/workflows/mobile-eas-production-build.yml
           .github/scripts/mirror-play-apk.cjs
           .github/scripts/stage-preview-bundle.py
           .github/scripts/stage-preview-bundle.test.py
@@ -119,6 +121,9 @@ jobs:
           .github/scripts/mobile-preview-comment.test.cjs
           .github/scripts/mobile-ios-preview-record.cjs
           .github/scripts/mobile-ios-preview-record.test.cjs
+          .github/scripts/set-mobile-version.cjs
+          .github/scripts/set-release-version.cjs
+          .github/scripts/workflow-credentials.test.cjs
           .github/actions/ci-changes/action.yml
           .github/actions/setup-ci-deps/action.yml
           "

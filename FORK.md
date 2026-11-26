@@ -17,7 +17,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | Deleted workflow                    | Why it cannot run on the fork                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ci.yml`                            | Blacksmith runners; the fork has no CI. Its `.github/actions/{ci-changes,setup-ci-deps}` helpers went with it. `.github/scripts/ci-changes.cjs` stays: `vp run check:changed` imports it. |
-| `release.yml`                       | Upstream's release pipeline; the fork ships via `pnpm dist:fork`. Its `.github/scripts/check-nightly-release.*` helpers went with it.                                                     |
+| `release.yml`                       | Upstream's release pipeline; the fork ships via `pnpm dist:fork`. Its `.github/scripts/{check-nightly-release,set-release-version}.*` helpers went with it.                               |
 | `deploy-relay.yml`                  | Blacksmith + Cloudflare/PlanetScale/Axiom secrets. Fired on every push to `main`.                                                                                                         |
 | `desktop-macos-preview.yml`         | Blacksmith macOS + Linux runners.                                                                                                                                                         |
 | `publish-aur.yml`                   | Blacksmith + `AUR_SSH_PRIVATE_KEY`; the fork does not publish to the AUR.                                                                                                                 |
@@ -26,7 +26,7 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `mobile-fingerprint-check.yml`      | Blacksmith. Fired on PRs touching `packages/**`, `scripts/**`, or the lockfile.                                                                                                           |
 | `mobile-fingerprint-label.yml`      | Triggers on `workflow_run` of the deleted `mobile-fingerprint-check.yml`, so it can never fire.                                                                                           |
 | `mobile-showcase-screenshots.yml`   | Blacksmith macOS + Linux runners.                                                                                                                                                         |
-| `web-preview.yml`                   | Blacksmith + Vercel secrets. `.github/scripts/vercel-deployment-output.test.cjs`, which parses it and `release.yml`, went with it.                                                        |
+| `web-preview.yml`                   | Blacksmith + Vercel secrets. `.github/scripts/{vercel-deployment-output,workflow-credentials}.test.cjs`, which parse it and `release.yml`, went with it.                                  |
 | `thread-transfer-report.yml`        | Triggers on `workflow_run` of `CI`, which the fork deleted. Its `.github/scripts/thread-transfer-report.*` helpers went with it.                                                          |
 | `windows-tests.yml`                 | Blacksmith Windows runner (`blacksmith-8vcpu-windows-2025`).                                                                                                                              |
 | `release-desktop.yml`               | Reusable `workflow_call` job of the deleted `release.yml`; needs Apple and Azure signing secrets.                                                                                         |
@@ -36,6 +36,8 @@ Upstream's CI depends on infrastructure this fork does not have: [Blacksmith](ht
 | `relay-preview-cleanup.yml`         | Tears down the deleted `relay-preview.yml` deployments; same runners and secrets.                                                                                                         |
 | `mobile-eas-preview-fork.yml`       | Blacksmith + `EXPO_PREVIEW_TOKEN`; `pull_request_target` EAS previews for fork PRs.                                                                                                       |
 | `mobile-dev-client.yml`             | Blacksmith + `T3_TASK_CACHE_READ_TOKEN`/`T3_NATIVE_CLIENT_WRITE_TOKEN`; `vp run mobile:install` dispatches it on `pingdotgg/t3code`, never here.                                          |
+| `mobile-eas-preview-build.yml`      | Reusable `workflow_call` job of the deleted `mobile-eas-preview.yml`; Blacksmith + `EXPO_PREVIEW_TOKEN`.                                                                                  |
+| `mobile-eas-production-build.yml`   | Reusable `workflow_call` job of the deleted `mobile-eas-production.yml`; Blacksmith + `EXPO_PRODUCTION_TOKEN`. Its `.github/scripts/set-mobile-version.cjs` helper went with it.          |
 
 Kept, because they run on stock GitHub runners with only `GITHUB_TOKEN`: `issue-labels.yml`, `issue-vouch.yml`, `pr-limits.yml`, `pr-size.yml`, `pr-vouch.yml`, `stale-needs-more-info.yml`, `agent-context-budget.yml`, and the fork's own `sync-upstream.yml`.
 
