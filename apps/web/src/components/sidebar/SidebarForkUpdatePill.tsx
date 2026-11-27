@@ -10,7 +10,7 @@ import {
   shouldShowForkUpdateNotification,
 } from "../forkUpdate.logic";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 
 export function SidebarForkUpdatePill() {
   const state = useForkUpdateState();
@@ -56,25 +56,24 @@ export function SidebarForkUpdatePill() {
       ) : (
         <div className="group/fork-update relative flex min-h-7 w-full items-center rounded-lg bg-accent/80 text-xs font-medium text-accent-foreground">
           <div className="pointer-events-none absolute inset-0 rounded-lg transition-colors group-has-[[data-fork-main]:hover]/fork-update:bg-accent" />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <div
-                  data-fork-main
-                  className="relative flex flex-1 flex-col gap-0.5 px-2.5 py-1.5"
-                  aria-label={tooltip}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <GitForkIcon className="size-3.5" />
-                    <span className="font-medium">{title}</span>
-                  </div>
-                  <span className="text-3xs leading-tight text-accent-foreground/70">
-                    <T>Rebuild and install from your fork</T>
-                  </span>
+          <SharedTooltipTrigger
+            render={
+              <div
+                data-fork-main
+                className="relative flex flex-1 flex-col gap-0.5 px-2.5 py-1.5"
+                aria-label={tooltip}
+              >
+                <div className="flex items-center gap-1.5">
+                  <GitForkIcon className="size-3.5" />
+                  <span className="font-medium">{title}</span>
                 </div>
-              }
-            />
-            <TooltipPopup side="top" className="max-w-xs">
+                <span className="text-3xs leading-tight text-accent-foreground/70">
+                  <T>Rebuild and install from your fork</T>
+                </span>
+              </div>
+            }
+            className="max-w-xs"
+            label={
               <div className="flex flex-col gap-1">
                 <span className="font-medium">{title}</span>
                 <span className="text-xs text-muted-foreground">{message}</span>
@@ -86,25 +85,21 @@ export function SidebarForkUpdatePill() {
                   </span>
                 )}
               </div>
-            </TooltipPopup>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  aria-label={gt("Dismiss")}
-                  className="mr-1.5 inline-flex size-5 items-center justify-center rounded-md text-accent-foreground/60 transition-colors hover:text-accent-foreground"
-                  onClick={() => setDismissed(true)}
-                >
-                  <XIcon className="size-3.5" />
-                </button>
-              }
-            />
-            <TooltipPopup side="top">
-              <T>Dismiss until next launch</T>
-            </TooltipPopup>
-          </Tooltip>
+            }
+          />
+          <SharedTooltipTrigger
+            render={
+              <button
+                type="button"
+                aria-label={gt("Dismiss")}
+                className="mr-1.5 inline-flex size-5 items-center justify-center rounded-md text-accent-foreground/60 transition-colors hover:text-accent-foreground"
+                onClick={() => setDismissed(true)}
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            }
+            label={<T>Dismiss until next launch</T>}
+          />
         </div>
       )}
     </div>
